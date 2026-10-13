@@ -42,7 +42,7 @@ export function BookCover({
         <div className="absolute inset-0 flex flex-col justify-between p-[10%]">
           <div className="h-px w-1/3 bg-ink/25" />
           <div>
-            <p className={`font-serif leading-[1.15] text-ink-2 ${titleSize} line-clamp-5`}>{title}</p>
+            <p className={`font-serif leading-[1.15] text-ink-2 ${titleSize} line-clamp-5 break-words hyphens-auto`}>{title}</p>
             {author && size !== "sm" && (
               <p className="mt-2 text-[10px] tracking-[0.12em] text-muted uppercase line-clamp-2">{author}</p>
             )}

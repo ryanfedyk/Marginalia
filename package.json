@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.29.1",
+    "firebase": "^13.0.0",
     "html5-qrcode": "^2.3.8",
     "next": "^16.4.0",
     "react": "^19.3.0",

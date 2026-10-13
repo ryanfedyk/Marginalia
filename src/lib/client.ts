@@ -1,6 +1,7 @@
 "use client";
 
-import type { BookMetadata, ShelfCandidate, TasteProfile } from "./types";
+import type { FirebaseWebConfig } from "./firebase-config";
+import type { BookMetadata, CriticQuote, ShelfCandidate, TasteProfile } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   const data = await res.json().catch(() => ({}));
@@ -63,7 +64,16 @@ export async function streamCompanion(
   return text;
 }
 
-export async function aiStatus(): Promise<{ ai: boolean; model: string }> {
+export async function fetchPraise(title: string, authors: string[]): Promise<CriticQuote[]> {
+  const res = await fetch("/api/praise", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, authors }),
+  });
+  return (await json<{ quotes: CriticQuote[] }>(res)).quotes;
+}
+
+export async function aiStatus(): Promise<{ ai: boolean; model: string; firebase: FirebaseWebConfig | null }> {
   return json(await fetch("/api/status"));
 }
 

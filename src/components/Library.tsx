@@ -4,14 +4,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { aiStatus } from "@/lib/client";
 import { useHydrated, useLibrary } from "@/lib/store";
 import { STATUS_LABELS, type Book, type ReadingStatus } from "@/lib/types";
+import { initAccount, useAccount } from "@/lib/sync";
+import { AccountButton } from "./AccountButton";
 import { BookCover } from "./BookCover";
 import { BookPanel } from "./BookPanel";
 import { Dialog } from "./Dialog";
 import { DiscoveryPanel } from "./DiscoveryPanel";
 import { ScanDialog } from "./ScanDialog";
+import { ReadingNow } from "./ReadingNow";
 import { SearchDialog } from "./SearchDialog";
 import { ShelfDialog } from "./ShelfDialog";
 import { BarcodeIcon, PlusIcon, SearchIcon, ShelfIcon } from "./icons";
+import { usePinchZoom } from "./usePinchZoom";
 
 type Filter = ReadingStatus | "all";
 type Modal = "scan" | "shelf" | "search" | "discover" | null;
@@ -29,7 +33,15 @@ export function Library() {
   const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    aiStatus().then((s) => setAiReady(s.ai)).catch(() => setAiReady(false));
+    aiStatus()
+      .then((s) => {
+        setAiReady(s.ai);
+        initAccount(s.firebase);
+      })
+      .catch(() => {
+        setAiReady(false);
+        initAccount(null);
+      });
   }, []);
 
   const counts = useMemo(() => {
@@ -38,17 +50,25 @@ export function Library() {
     return c;
   }, [books]);
 
+  const account = useAccount();
+  const coverWidth = usePinchZoom(!openId && !modal && !menu);
+  const q = query.trim().toLowerCase();
+  // On the main view, books in hand get their own section above the shelf.
+  const showReading = filter === "all" && !q;
+  const reading = useMemo(
+    () => books.filter((b) => b.status === "reading").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    [books],
+  );
+
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return books
-      .filter((b) => filter === "all" || b.status === filter)
+      .filter((b) => (filter === "all" ? !(showReading && b.status === "reading") : b.status === filter))
       .filter((b) => !q || b.title.toLowerCase().includes(q) || b.authors.some((a) => a.toLowerCase().includes(q)))
       .sort((a, b) => {
-        // Books in progress lead; otherwise newest first.
         if (filter === "all" && (a.status === "reading") !== (b.status === "reading")) return a.status === "reading" ? -1 : 1;
         return b.addedAt.localeCompare(a.addedAt);
       });
-  }, [books, filter, query]);
+  }, [books, filter, q, showReading]);
 
   const openModal = (m: Modal) => {
     setMenu(false);
@@ -93,7 +113,9 @@ export function Library() {
           </p>
         </div>
 
-        <div className="relative">
+        <div className="flex items-center gap-2.5">
+          <AccountButton />
+          <div className="relative">
           <button className="btn btn-primary" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
             <PlusIcon /> <span className="hidden sm:inline">Add books</span>
           </button>
@@ -107,6 +129,7 @@ export function Library() {
               </div>
             </>
           )}
+          </div>
         </div>
       </header>
 
@@ -142,25 +165,50 @@ export function Library() {
       {!hydrated ? null : books.length === 0 ? (
         <EmptyState onPick={openModal} />
       ) : (
-        <ul className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 sm:gap-x-10 sm:gap-y-16 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <>
+        {showReading && <ReadingNow books={reading} aiReady={aiReady} onOpen={setOpenId} />}
+        {showReading && reading.length > 0 && visible.length > 0 && <p className="eyebrow mb-8">On the shelf</p>}
+        <ul
+          data-shelf
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(auto-fill, minmax(min(${coverWidth}px, 100%), 1fr))`,
+            columnGap: `${Math.round(Math.min(40, Math.max(12, coverWidth * 0.18)))}px`,
+            rowGap: `${Math.round(coverWidth < 100 ? coverWidth * 0.22 : 24 + coverWidth * 0.18)}px`,
+          }}
+        >
           {visible.map((b, i) => (
             <li key={b.id} className="animate-rise-in" style={{ animationDelay: `${Math.min(i, 18) * 28}ms` }}>
               <button onClick={() => setOpenId(b.id)} className="group block w-full text-left" aria-label={`${b.title} by ${b.authors.join(", ")}`}>
                 <div className="transition duration-500 ease-[var(--ease-out-soft)] group-hover:-translate-y-1.5 [&>div]:transition-shadow [&>div]:duration-500 group-hover:[&>div]:shadow-cover-lift">
                   <BookCover title={b.title} author={b.authors[0]} src={b.coverUrl} />
                 </div>
-                <p className="mt-4 line-clamp-2 font-serif text-[15px] leading-snug text-ink-2">{b.title}</p>
-                <p className="mt-0.5 line-clamp-1 text-xs text-faint">{b.authors[0] ?? ""}</p>
+                {coverWidth >= 100 && (
+                  <>
+                    <p className="mt-4 line-clamp-2 font-serif text-[15px] leading-snug text-ink-2">{b.title}</p>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-faint">{b.authors[0] ?? ""}</p>
+                  </>
+                )}
               </button>
             </li>
           ))}
-          {visible.length === 0 && <li className="col-span-full py-20 text-center text-sm text-faint">Nothing here yet.</li>}
+          {visible.length === 0 && !(showReading && reading.length) && (
+            <li className="col-span-full py-20 text-center text-sm text-faint">Nothing here yet.</li>
+          )}
         </ul>
+        </>
       )}
 
       {hydrated && books.length > 0 && (
         <footer className="mt-28 flex flex-wrap items-center justify-between gap-4 border-t border-rule py-8 text-xs text-faint">
-          <span>Your library lives in this browser.</span>
+          <span>
+            {account.status === "signedIn"
+              ? `Saved to ${account.user?.email ?? "your account"}.`
+              : account.status === "signedOut"
+                ? "Your library lives in this browser. Sign in to keep it in the cloud."
+                : "Your library lives in this browser."}
+            <span className="hidden sm:inline"> Pinch to resize the shelf.</span>
+          </span>
           <div className="flex gap-5">
             <button className="hover:text-ink" onClick={exportLibrary}>Export</button>
             <button className="hover:text-ink" onClick={() => importRef.current?.click()}>Import</button>

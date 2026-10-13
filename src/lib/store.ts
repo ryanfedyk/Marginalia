@@ -16,6 +16,8 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 interface LibraryState {
   books: Book[];
   profile: TasteProfile | null;
+  /** Firebase uid this local library belongs to (null = never synced / signed out). */
+  ownerUid: string | null;
   /** Returns the existing book if it's already shelved. */
   findDuplicate: (meta: BookMetadata) => Book | undefined;
   addBook: (meta: BookMetadata, status?: ReadingStatus) => { book: Book; duplicate: boolean };
@@ -28,6 +30,11 @@ interface LibraryState {
   removeCompanion: (bookId: string, entryId: string) => void;
   setProfile: (p: TasteProfile | null) => void;
   importLibrary: (books: Book[]) => number;
+  setPraise: (bookId: string, praise: NonNullable<Book["praise"]>) => void;
+  /** Cloud sync: apply remote state without touching timestamps. */
+  applyRemote: (upserts: Book[], deletedIds: string[]) => void;
+  setOwner: (uid: string | null) => void;
+  resetLocal: () => void;
 }
 
 function touch(books: Book[], id: string, fn: (b: Book) => Book): Book[] {
@@ -39,6 +46,7 @@ export const useLibrary = create<LibraryState>()(
     (set, get) => ({
       books: [],
       profile: null,
+      ownerUid: null,
 
       findDuplicate: (meta) =>
         get().books.find(
@@ -114,6 +122,23 @@ export const useLibrary = create<LibraryState>()(
         }
         return added;
       },
+
+      setPraise: (bookId, praise) => set((s) => ({ books: touch(s.books, bookId, (b) => ({ ...b, praise })) })),
+
+      applyRemote: (upserts, deletedIds) =>
+        set((s) => {
+          const gone = new Set(deletedIds);
+          const byId = new Map(s.books.filter((b) => !gone.has(b.id)).map((b) => [b.id, b]));
+          for (const b of upserts) byId.set(b.id, { ...b, notes: b.notes ?? [], companion: b.companion ?? [] });
+          // Preserve local order; new remote books go first.
+          const order = s.books.map((b) => b.id).filter((id) => byId.has(id));
+          const fresh = upserts.map((b) => b.id).filter((id) => !order.includes(id));
+          return { books: [...fresh, ...order].map((id) => byId.get(id)!) };
+        }),
+
+      setOwner: (ownerUid) => set({ ownerUid }),
+
+      resetLocal: () => set({ books: [], profile: null, ownerUid: null }),
     }),
     {
       name: "marginalia.library.v1",

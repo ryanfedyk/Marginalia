@@ -56,6 +56,27 @@ export async function structured<T>(opts: {
   return opts.schema.parse(JSON.parse(text));
 }
 
+/**
+ * Answer with Google Search grounding and parse a JSON object out of the reply.
+ * (Search grounding and JSON-schema mode aren't combined, so the JSON is extracted leniently.)
+ */
+export async function searchGroundedJson<T>(opts: { system: string; prompt: string }): Promise<T> {
+  const res = await getClient().models.generateContent({
+    model: MODEL,
+    contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+    config: { systemInstruction: opts.system, tools: [{ googleSearch: {} }] },
+  });
+  const text = res.text ?? "";
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return {} as T;
+  try {
+    return JSON.parse(text.slice(start, end + 1)) as T;
+  } catch {
+    return {} as T;
+  }
+}
+
 /** Stream plain prose back to the browser as a text/plain body. */
 export async function streamText(opts: { system: string; content: Content }): Promise<Response> {
   const stream = await getClient().models.generateContentStream({

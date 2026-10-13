@@ -49,6 +49,12 @@ export interface CompanionEntry {
 
 export type CompanionMode = "catchup" | "recap" | "untangle";
 
+export interface CriticQuote {
+  quote: string;
+  critic: string;
+  publication: string;
+}
+
 export interface Book extends BookMetadata {
   id: string;
   status: ReadingStatus;
@@ -56,6 +62,8 @@ export interface Book extends BookMetadata {
   progress?: string;
   notes: Note[];
   companion: CompanionEntry[];
+  /** Critics' quotes found via search, cached so we only look them up once. */
+  praise?: { quotes: CriticQuote[]; fetchedAt: string };
   addedAt: string;
   updatedAt: string;
 }

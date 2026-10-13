@@ -2,7 +2,9 @@
 
 A quiet, tactile home for the books you own and the thoughts they leave behind.
 
-- **Library**: a calm gallery of canonical cover art. No badges, stars or feeds.
+- **Library**: a calm gallery of canonical cover art. No badges, stars or feeds. Pinch (or trackpad-pinch) to resize the covers.
+- **Currently reading**: books in hand sit above the shelf, each with a critic's line about it. Quotes are found with Gemini + Google Search, and a different one appears on each visit.
+- **Google sign-in**: sign in to keep the library in your account (Firebase Auth + Firestore), synced live across devices and usable offline.
 - **Scan a barcode**: live camera ISBN scanning. It uses the native `BarcodeDetector` where the browser has it and falls back to `html5-qrcode` elsewhere. Metadata comes from Open Library, with Google Books as a fallback. Covers are always the canonical Open Library art (`covers.openlibrary.org/b/isbn/{isbn}-L.jpg`) and never a camera snapshot.
 - **Photograph a shelf**: Gemini reads every spine in one photo and returns `{ "books": [{ "title", "author" }] }` (JSON-schema constrained). You review the matches, untick any mistakes and shelve the rest in one go.
 - **Book page**: a slide-over panel with reading status, plus three tabs:
@@ -64,9 +66,20 @@ With the trigger connected, every push to the branch it watches redeploys automa
 
 To run the container locally: `docker build -t marginalia . && docker run -p 3000:3000 -e GEMINI_API_KEY=... marginalia`.
 
+## Turning on Google sign-in (Firebase)
+
+Sign-in stays hidden until Firebase is configured. One-time setup:
+
+1. Open [console.firebase.google.com](https://console.firebase.google.com), click **Add project**, and pick your **existing Google Cloud project** (the one Marginalia runs in).
+2. **Build → Authentication → Get started → Google → Enable → Save.** Then go to **Settings → Authorized domains → Add domain** and add your Cloud Run domain (e.g. `marginalia-abc123-uc.a.run.app`, without `https://`).
+3. **Build → Firestore Database → Create database.** Choose *Production mode* and a location near you. Open the **Rules** tab, replace the contents with [`firestore.rules`](firestore.rules), and click **Publish**.
+4. **Project settings (gear) → Your apps → Web (`</>`)**, register an app called "Marginalia", and copy the `firebaseConfig` values into `src/lib/firebase-config.ts`. These values are public by design; the Firestore rules keep each library private. You can also provide them at run time as a `FIREBASE_CONFIG` environment variable.
+
+Each book is stored at `users/{uid}/books/{bookId}`. Conflicts resolve per book, and the most recent edit wins. Deleting a book leaves a tombstone, so offline devices don't bring it back. The first time someone signs in, the books already on that device are added to their account.
+
 ## Notes
 
-- Your library is stored in the browser (localStorage). You can **Export** or **Import** it as JSON from the footer.
+- Signed out, your library is stored in the browser (localStorage). Signed in, it lives in Firestore. **Export** and **Import** (JSON) are in the footer either way.
 - All AI features run on Google Gemini through the official `@google/genai` SDK. Shelf reading and Discovery use JSON-schema structured output.
 - `npm test` runs the unit tests for ISBN handling and metadata lookup. `npm run build` type-checks and builds the app.
 
@@ -78,6 +91,7 @@ src/app/api/resolve    title + author → metadata (for shelf photos and recomme
 src/app/api/shelf      shelf photo → Gemini → { books: [...] }
 src/app/api/companion  streaming recaps, catch-ups and passage untangling
 src/app/api/discover   taste profile and recommendations
+src/app/api/praise     critics' quotes (Gemini with Google Search grounding)
 src/components         Library grid, BookPanel, tabs, dialogs
-src/lib                types, store, ISBN maths, server metadata, Gemini client
+src/lib                types, store, ISBN maths, server metadata, Gemini client, Firebase sync
 ```
