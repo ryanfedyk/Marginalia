@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { errorResponse, structured } from "@/lib/claude";
+import { errorResponse, structured } from "@/lib/ai";
 
 export const maxDuration = 120;
 
@@ -74,7 +74,6 @@ export async function POST(req: Request) {
       system: SYSTEM,
       schema: ProfileSchema,
       jsonSchema: PROFILE_JSON_SCHEMA,
-      effort: "medium",
       content: `Here is my library:\n\n${library}\n\nDescribe my taste and recommend what I should read next.`,
     });
     return Response.json({ profile });

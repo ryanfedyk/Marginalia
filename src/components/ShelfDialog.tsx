@@ -107,7 +107,7 @@ export function ShelfDialog({ open, onClose }: { open: boolean; onClose: () => v
       {step === "pick" && (
         <div className="animate-fade-in">
           <p className="-mt-1 mb-6 text-sm leading-relaxed text-muted">
-            Take one photo of a shelf, spines facing out. Claude reads every title it can, then you choose what to keep.
+            Take one photo of a shelf, spines facing out. Gemini reads every title it can, then you choose what to keep.
           </p>
           <button
             onClick={() => fileRef.current?.click()}

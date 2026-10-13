@@ -1,4 +1,4 @@
-import { errorResponse, streamText } from "@/lib/claude";
+import { errorResponse, streamText } from "@/lib/ai";
 import type { CompanionMode } from "@/lib/types";
 
 export const maxDuration = 120;
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
   if (!prompt) return Response.json({ error: "Missing chapter or passage." }, { status: 400 });
 
   try {
-    return streamText({ system: SYSTEM, content: prompt, effort: "medium" });
+    return await streamText({ system: SYSTEM, content: prompt });
   } catch (err) {
     return errorResponse(err);
   }

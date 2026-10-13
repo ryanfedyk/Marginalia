@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { errorResponse, structured } from "@/lib/claude";
+import { errorResponse, structured } from "@/lib/ai";
 
 export const maxDuration = 120;
 
@@ -60,10 +60,9 @@ export async function POST(req: Request) {
       system: SYSTEM,
       schema: ShelfSchema,
       jsonSchema: SHELF_JSON_SCHEMA,
-      effort: "medium",
       content: [
-        { type: "image", source: { type: "base64", media_type: mediaType, data: body.image } },
-        { type: "text", text: "Catalogue the books on this shelf." },
+        { inlineData: { mimeType: mediaType, data: body.image } },
+        { text: "Catalogue the books on this shelf." },
       ],
     });
     // De-duplicate case-insensitively.

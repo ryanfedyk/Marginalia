@@ -61,7 +61,7 @@ export function CompanionTab({ book, aiReady }: { book: Book; aiReady: boolean |
     <div>
       {aiReady === false && (
         <p className="mb-6 rounded-xl bg-paper-2 px-4 py-3 text-xs leading-relaxed text-muted">
-          The Companion needs an Anthropic API key on the server (<code>ANTHROPIC_API_KEY</code>).
+          The Companion needs a Gemini API key on the server (<code>GEMINI_API_KEY</code>).
         </p>
       )}
 

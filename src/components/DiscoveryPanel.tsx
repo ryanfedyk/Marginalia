@@ -47,7 +47,7 @@ export function DiscoveryPanel({ aiReady }: { aiReady: boolean | null }) {
         <button className="btn btn-primary mt-6" disabled={loading || !books.length || aiReady === false} onClick={generate}>
           {loading ? "Reading your shelves…" : "Draw my taste profile"}
         </button>
-        {aiReady === false && <p className="mt-4 text-xs text-muted">Needs ANTHROPIC_API_KEY on the server.</p>}
+        {aiReady === false && <p className="mt-4 text-xs text-muted">Needs GEMINI_API_KEY on the server.</p>}
         {error && <p className="mt-4 text-sm text-accent">{error}</p>}
       </div>
     );
