@@ -78,6 +78,7 @@ export async function signIn() {
     await signInWithPopup(auth, provider);
   } catch (e) {
     const code = (e as { code?: string }).code;
+    console.warn("Sign-in failed:", code, e);
     if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
       await signInWithRedirect(auth, provider);
     } else if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
