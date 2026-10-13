@@ -15,7 +15,14 @@ export interface FirebaseWebConfig {
   messagingSenderId?: string;
 }
 
-export const FIREBASE_CONFIG: FirebaseWebConfig | null = null;
+export const FIREBASE_CONFIG: FirebaseWebConfig | null = {
+  apiKey: "AIzaSyAYj0iCaRyRTo7ToqrUzYs-4fCmpLhB9XE",
+  authDomain: "eastern-rider-511520-d9.firebaseapp.com",
+  projectId: "eastern-rider-511520-d9",
+  storageBucket: "eastern-rider-511520-d9.firebasestorage.app",
+  messagingSenderId: "561193017763",
+  appId: "1:561193017763:web:83e77898f15230ea177a16",
+};
 
 /** Accepts either JSON or the JS object literal Firebase console shows. */
 export function parseFirebaseConfig(raw: string | undefined): FirebaseWebConfig | null {
