@@ -6,7 +6,11 @@
 #   --substitutions=_REGION=europe-west1,_SERVICE=marginalia
 #
 # The Gemini key is read from Secret Manager at run time (never baked into the image).
-# Point _GEMINI_SECRET at the same secret your other projects (e.g. Taper) already use.
+#
+# Everything runs as one dedicated service account, marginalia-runner@PROJECT.iam.gserviceaccount.com,
+# used both by the Cloud Build trigger and by the Cloud Run service. Give it these roles:
+#   Cloud Run Admin, Service Account User, Artifact Registry Administrator,
+#   Logs Writer, Secret Manager Secret Accessor
 
 substitutions:
   _REGION: us-central1
@@ -14,8 +18,19 @@ substitutions:
   _SERVICE: marginalia
   _GEMINI_SECRET: GEMINI_API_KEY
   _GEMINI_MODEL: gemini-3.8-flash
+  _RUN_SA_NAME: marginalia-runner
 
 steps:
+  # Create the Artifact Registry repo on first run; a no-op afterwards.
+  - id: ensure-repo
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud artifacts repositories describe ${_REPOSITORY} --location=${_REGION} >/dev/null 2>&1 ||
+        gcloud artifacts repositories create ${_REPOSITORY} --repository-format=docker --location=${_REGION}
+
   - id: build
     name: gcr.io/cloud-builders/docker
     args:
@@ -46,6 +61,7 @@ steps:
       - --timeout=300
       - --set-secrets=GEMINI_API_KEY=${_GEMINI_SECRET}:latest
       - --set-env-vars=GEMINI_MODEL=${_GEMINI_MODEL}
+      - --service-account=${_RUN_SA_NAME}@$PROJECT_ID.iam.gserviceaccount.com
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
