@@ -1,0 +1,57 @@
+# Build the Marginalia image and deploy it to Cloud Run.
+#
+#   gcloud builds submit --config cloudbuild.yaml
+#
+# or connect a Cloud Build trigger to this repo. Override any substitution with
+#   --substitutions=_REGION=europe-west1,_SERVICE=marginalia
+#
+# The Gemini key is read from Secret Manager at run time (never baked into the image).
+# Point _GEMINI_SECRET at the same secret your other projects (e.g. Taper) already use.
+
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: cloud-run-source-deploy
+  _SERVICE: marginalia
+  _GEMINI_SECRET: GEMINI_API_KEY
+  _GEMINI_MODEL: gemini-3.8-flash
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}"]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --memory=512Mi
+      - --timeout=300
+      - --set-secrets=GEMINI_API_KEY=${_GEMINI_SECRET}:latest
+      - --set-env-vars=GEMINI_MODEL=${_GEMINI_MODEL}
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$BUILD_ID
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1200s

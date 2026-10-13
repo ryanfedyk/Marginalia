@@ -24,7 +24,49 @@ npm run dev                  # http://localhost:3000
 | `GEMINI_MODEL` | Optional model override. The default is `gemini-3.8-flash`. |
 | `GOOGLE_BOOKS_API_KEY` | Optional. Raises Google Books rate limits for the fallback lookup. |
 
-The camera only works on `https://` or `localhost`. To test on a phone, deploy the app (Vercel works out of the box) or use an HTTPS tunnel.
+The camera only works on `https://` or `localhost`. Cloud Run gives you an https address automatically.
+
+## Deploying to Google Cloud (Cloud Build → Cloud Run)
+
+The repo includes a `Dockerfile` and a `cloudbuild.yaml`. Cloud Build builds the image, pushes it to Artifact Registry and deploys it to Cloud Run. The Gemini key comes from Secret Manager at run time, so it is never stored in the image or the repo.
+
+**One-time setup** (skip any step your project already has from Taper):
+
+```bash
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
+
+# Artifact Registry repo (Cloud Run's default name; reuse Taper's if it already exists)
+gcloud artifacts repositories create cloud-run-source-deploy --repository-format=docker --location=us-central1
+
+# The Gemini key. If Taper already stores it in Secret Manager, skip this and set
+# _GEMINI_SECRET to that secret's name instead.
+printf "%s" "YOUR_GEMINI_KEY" | gcloud secrets create GEMINI_API_KEY --data-file=-
+
+# Let Cloud Run read the secret, and let Cloud Build deploy.
+PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format='value(projectNumber)')
+gcloud secrets add-iam-policy-binding GEMINI_API_KEY \
+  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" --role=roles/secretmanager.secretAccessor
+```
+
+**Deploy:**
+
+```bash
+gcloud builds submit --config cloudbuild.yaml
+# or with overrides:
+gcloud builds submit --config cloudbuild.yaml --substitutions=_REGION=europe-west1,_GEMINI_SECRET=taper-gemini-key
+```
+
+You can also connect a Cloud Build trigger to this GitHub repo, so every push to `main` redeploys. Set the trigger's configuration file to `cloudbuild.yaml`; if your trigger uses a custom service account, give it the *Cloud Run Admin* and *Service Account User* roles.
+
+| Substitution | Default | Meaning |
+|---|---|---|
+| `_REGION` | `us-central1` | Cloud Run and Artifact Registry region |
+| `_REPOSITORY` | `cloud-run-source-deploy` | Artifact Registry repo |
+| `_SERVICE` | `marginalia` | Cloud Run service name |
+| `_GEMINI_SECRET` | `GEMINI_API_KEY` | Secret Manager secret holding the Gemini key |
+| `_GEMINI_MODEL` | `gemini-3.8-flash` | Gemini model |
+
+To run the container locally: `docker build -t marginalia . && docker run -p 3000:3000 -e GEMINI_API_KEY=... marginalia`.
 
 ## Notes
 
