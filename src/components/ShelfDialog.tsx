@@ -164,7 +164,7 @@ export function ShelfDialog({ open, onClose }: { open: boolean; onClose: () => v
                   disabled={r.duplicate}
                 >
                   <div className="w-10 shrink-0">
-                    <BookCover title={r.meta?.title ?? r.candidate.title} src={r.meta?.coverUrl} size="sm" />
+                    <BookCover title={r.meta?.title ?? r.candidate.title} src={r.meta?.coverUrl} size="xs" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-serif text-[15px] text-ink-2">{r.meta?.title ?? r.candidate.title}</p>

@@ -77,3 +77,28 @@ describe("resolveTitle", () => {
     });
   });
 });
+
+describe("suggestBooks", () => {
+  it("merges Open Library and Google Books, de-duplicating the same book", async () => {
+    const { suggestBooks } = await import("./metadata");
+    mockFetch([
+      [/openlibrary\.org\/search\.json/, () => ({ status: 200, body: { docs: [
+        { title: "Stoner", author_name: ["John Williams"], cover_i: 7, first_publish_year: 1965 },
+        { title: "Stoner's Daughter", author_name: ["Someone Else"] },
+      ] } })],
+      [/googleapis/, () => ({ status: 200, body: { items: [
+        { volumeInfo: { title: "Stoner", authors: ["John Williams"] } },
+        { volumeInfo: { title: "Stone Mattress", authors: ["Margaret Atwood"] } },
+      ] } })],
+    ]);
+    const s = await suggestBooks("stoner");
+    expect(s.map((x) => x.title)).toEqual(["Stoner", "Stoner's Daughter", "Stone Mattress"]);
+    expect(s[0].thumbUrl).toBe("https://covers.openlibrary.org/b/id/7-M.jpg");
+  });
+
+  it("ignores one-character queries", async () => {
+    const { suggestBooks } = await import("./metadata");
+    mockFetch([]);
+    expect(await suggestBooks("s")).toEqual([]);
+  });
+});

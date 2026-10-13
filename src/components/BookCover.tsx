@@ -25,7 +25,7 @@ export function BookCover({
   author?: string;
   src?: string;
   className?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -38,7 +38,7 @@ export function BookCover({
       className={`relative aspect-[2/3] w-full overflow-hidden rounded-[3px] shadow-cover ${className}`}
       style={{ background: paper }}
     >
-      {!showImage || !loaded ? (
+      {(!showImage || !loaded) && size !== "xs" ? (
         <div className="absolute inset-0 flex flex-col justify-between p-[10%]">
           <div className="h-px w-1/3 bg-ink/25" />
           <div>

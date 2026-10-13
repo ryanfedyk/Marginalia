@@ -221,3 +221,64 @@ export async function resolveTitle(title: string, author?: string): Promise<Book
   const v = gb?.items?.[0];
   return v ? fromGoogle(v) : null;
 }
+
+export interface Suggestion extends BookMetadata {
+  /** Small cover for the suggestion list. */
+  thumbUrl?: string;
+}
+
+const normKey = (b: { title: string; authors: string[] }) =>
+  `${b.title.toLowerCase().replace(/[^a-z0-9]/g, "")}|${(b.authors[0] ?? "").toLowerCase().replace(/[^a-z]/g, "")}`;
+
+/** Type-ahead suggestions for free text (title, author, or both) or an ISBN. */
+export async function suggestBooks(query: string, limit = 7): Promise<Suggestion[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const isbn = toIsbn13(q);
+  if (isbn) {
+    const hit = await lookupIsbn(isbn);
+    return hit ? [{ ...hit, thumbUrl: hit.coverUrl }] : [];
+  }
+
+  const params = new URLSearchParams({
+    q,
+    limit: String(limit + 5),
+    fields: "title,subtitle,author_name,isbn,cover_i,first_publish_year,number_of_pages_median,publisher",
+  });
+  const [ol, gb] = await Promise.all([
+    getJson<{ docs?: OLSearchDoc[] }>(`${OL}/search.json?${params}`, 5000),
+    getJson<{ items?: GBVolume[] }>(googleUrl(q), 5000),
+  ]);
+
+  const out: Suggestion[] = [];
+  const seen = new Set<string>();
+  const push = (s: Suggestion) => {
+    const key = normKey(s);
+    if (seen.has(key) || out.length >= limit) return;
+    seen.add(key);
+    out.push(s);
+  };
+
+  for (const d of ol?.docs ?? []) {
+    if (!d.title) continue;
+    push({
+      isbn13: pickIsbn13(d.isbn),
+      title: d.title,
+      subtitle: d.subtitle,
+      authors: d.author_name?.slice(0, 3) ?? [],
+      publisher: d.publisher?.[0],
+      publishedDate: d.first_publish_year ? String(d.first_publish_year) : undefined,
+      pageCount: d.number_of_pages_median,
+      coverUrl: d.cover_i ? `${COVERS}/b/id/${d.cover_i}-L.jpg` : undefined,
+      thumbUrl: d.cover_i ? `${COVERS}/b/id/${d.cover_i}-M.jpg` : undefined,
+      source: "openlibrary",
+    });
+  }
+  // Google Books fills gaps (and is often better for very new titles).
+  for (const v of gb?.items ?? []) {
+    const m = fromGoogle(v);
+    if (m) push({ ...m, thumbUrl: m.coverUrl });
+  }
+  return out;
+}

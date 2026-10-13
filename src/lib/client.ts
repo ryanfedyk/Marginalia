@@ -13,6 +13,13 @@ export async function lookupIsbn(isbn: string): Promise<BookMetadata> {
   return (await json<{ book: BookMetadata }>(await fetch(`/api/lookup?isbn=${encodeURIComponent(isbn)}`))).book;
 }
 
+export type Suggestion = BookMetadata & { thumbUrl?: string };
+
+export async function suggest(q: string, signal?: AbortSignal): Promise<Suggestion[]> {
+  const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`, { signal });
+  return (await json<{ suggestions: Suggestion[] }>(res)).suggestions;
+}
+
 export async function resolveTitle(title: string, author?: string): Promise<BookMetadata> {
   const q = new URLSearchParams({ title });
   if (author) q.set("author", author);
