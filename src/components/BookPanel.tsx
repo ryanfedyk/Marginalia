@@ -27,7 +27,10 @@ export function BookPanel({ bookId, onClose, aiReady }: { bookId: string | null;
   const [confirmRemove, setConfirmRemove] = useState(false);
   useEscape(Boolean(book), onClose);
 
+  // Every book opens on Marginalia; nothing from the previous book's tabs carries over
+  // (and Discovery doesn't fire Gemini requests just because it was the last tab used).
   useEffect(() => {
+    setTab("marginalia");
     setConfirmRemove(false);
     document.getElementById("book-panel-scroll")?.scrollTo({ top: 0 });
   }, [bookId]);
@@ -115,7 +118,7 @@ export function BookPanel({ bookId, onClose, aiReady }: { bookId: string | null;
             ))}
           </nav>
 
-          <div key={tab} className="animate-fade-in pt-8">
+          <div key={`${book.id}:${tab}`} className="animate-fade-in pt-8">
             {tab === "marginalia" && <MarginaliaTab book={book} />}
             {tab === "companion" && <CompanionTab book={book} aiReady={aiReady} />}
             {tab === "discovery" && (

@@ -1,6 +1,10 @@
 import "server-only";
 import { ApiError, GoogleGenAI, type Part } from "@google/genai";
 import type { z } from "zod";
+import { RateLimitedError, Throttle, retryDelayMs } from "./throttle";
+
+/** Max Gemini requests started per minute (free tier is roughly 10). Raise GEMINI_RPM on a paid plan. */
+const throttle = new Throttle(Math.max(1, Number(process.env.GEMINI_RPM) || 8));
 
 /** Gemini powers every AI feature. Override the model with GEMINI_MODEL. */
 export const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
@@ -50,8 +54,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  */
 export async function withFallback<T>(
   call: (model: string) => Promise<T>,
-  opts: { models?: string[]; attempts?: number; baseDelayMs?: number } = {},
+  opts: { models?: string[]; attempts?: number; baseDelayMs?: number; limiter?: Throttle } = {},
 ): Promise<T> {
+  const limiter = opts.limiter ?? throttle;
   const models = opts.models ?? [MODEL, ...FALLBACK_MODELS];
   const attempts = opts.attempts ?? 3;
   const base = opts.baseDelayMs ?? 700;
@@ -59,11 +64,15 @@ export async function withFallback<T>(
   for (const model of models) {
     for (let i = 0; i < attempts; i++) {
       try {
+        await limiter.acquire(model);
         return await call(model);
       } catch (err) {
         lastErr = err;
         const status = err instanceof ApiError ? err.status : undefined;
+        if (err instanceof RateLimitedError) throw err;
         if (err instanceof ApiError && isKeyError(err)) throw err;
+        // Google asked us to slow down: pause every request, not just this one.
+        if (status === 429) limiter.pause(model, retryDelayMs(err instanceof Error ? err.message : ""));
         console.warn(`Gemini ${model} failed (${status ?? "error"}): ${geminiReason(err)}`);
         if ((status !== undefined && SKIP_MODEL.has(status)) || isQuotaError(err)) break;
         if (status === undefined || !TRANSIENT.has(status)) throw err;
@@ -200,6 +209,7 @@ export function errorResponse(err: unknown): Response {
     );
   }
   if (err instanceof AIRefusalError) return Response.json({ error: err.message }, { status: 422 });
+  if (err instanceof RateLimitedError) return Response.json({ error: err.message, code: "busy" }, { status: 429 });
   if (err instanceof ApiError) {
     if (isQuotaError(err))
       return Response.json(
@@ -231,6 +241,7 @@ export async function diagnose(): Promise<Record<string, unknown>> {
   const probe = async (fn: () => Promise<{ text?: string }>) => {
     const t = Date.now();
     try {
+      await throttle.acquire("*", 90_000);
       const res = await Promise.race([
         fn(),
         new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timed out after 45s")), 45000)),
@@ -242,7 +253,7 @@ export async function diagnose(): Promise<Record<string, unknown>> {
   };
   const models = [MODEL, ...FALLBACK_MODELS];
   const results = await Promise.all(
-    models.map(async (model) => ({
+    models.map(async (model, i) => i > 0 ? { model, text: await probe(() => client.models.generateContent({ model, contents: "Reply with the word OK." })) } : ({
       model,
       text: await probe(() => client.models.generateContent({ model, contents: "Reply with the word OK." })),
       json: await probe(() =>
@@ -264,5 +275,5 @@ export async function diagnose(): Promise<Record<string, unknown>> {
       ),
     })),
   );
-  return { key: "configured", primary: MODEL, results };
+  return { key: "configured", primary: MODEL, requestsPerMinute: Number(process.env.GEMINI_RPM) || 8, results };
 }

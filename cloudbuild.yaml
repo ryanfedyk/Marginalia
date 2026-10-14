@@ -19,6 +19,8 @@ substitutions:
   _GEMINI_SECRET: GEMINI_API_KEY
   _GEMINI_MODEL: gemini-3.8-flash
   _RUN_SA_NAME: marginalia-runner
+  # Gemini requests per minute the app may start. ~8 suits the free tier; raise it on a paid plan.
+  _GEMINI_RPM: "8"
 
 steps:
   # Create the Artifact Registry repo on first run; a no-op afterwards.
@@ -60,7 +62,9 @@ steps:
       - --memory=512Mi
       - --timeout=300
       - --set-secrets=GEMINI_API_KEY=${_GEMINI_SECRET}:latest
-      - --set-env-vars=GEMINI_MODEL=${_GEMINI_MODEL}
+      - --set-env-vars=GEMINI_MODEL=${_GEMINI_MODEL},GEMINI_RPM=${_GEMINI_RPM}
+      # One instance keeps the Gemini request limit exact (it's counted per instance).
+      - --max-instances=1
       - --service-account=${_RUN_SA_NAME}@$PROJECT_ID.iam.gserviceaccount.com
 
 images:

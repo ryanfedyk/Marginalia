@@ -1,6 +1,16 @@
 import { ApiError } from "@google/genai";
 import { describe, expect, it, vi } from "vitest";
-import { geminiReason, withFallback } from "./ai";
+import { geminiReason, withFallback as realWithFallback } from "./ai";
+import { Throttle } from "./throttle";
+
+// Tests get their own instant, unlimited traffic light.
+const withFallback: typeof realWithFallback = (call, opts = {}) =>
+  realWithFallback(call, { ...opts, limiter: fakeLimiter() });
+
+function fakeLimiter() {
+  let t = 0;
+  return new Throttle(1000, () => t, async (ms) => void (t += ms));
+}
 
 const apiErr = (status: number) => new ApiError({ message: `status ${status}`, status });
 
