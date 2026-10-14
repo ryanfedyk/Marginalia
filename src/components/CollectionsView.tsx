@@ -128,24 +128,34 @@ export function CollectionsView({
     );
   }
 
+  const drawnOn = new Date(collections.generatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const redrawButton = (label: string, className: string) => (
+    <button className={className} disabled={loading || aiReady === false} onClick={draw}>
+      {loading ? "Redrawing…" : label}
+    </button>
+  );
+
   return (
     <div>
-      {rows.map((r, i) => (
-        <CollectionRow key={r.key} row={r} coverWidth={coverWidth} onOpen={onOpen} index={i} />
-      ))}
-      <div className="mt-4 flex items-center gap-3 text-[11px] text-faint">
-        <span>
-          Collections drawn {new Date(collections.generatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-          {worthRedrawing ? ` · ${newCount} new books since` : ""}
-        </span>
-        <button
-          className={`underline-offset-4 hover:text-ink hover:underline ${worthRedrawing ? "text-ink" : ""}`}
-          disabled={loading || aiReady === false}
-          onClick={draw}
-        >
-          {loading ? "Redrawing…" : "Redraw"}
-        </button>
-        {error && <span className="text-accent">{error}</span>}
+      {worthRedrawing && !loading ? (
+        <div className="animate-fade-in mb-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rule bg-paper-2/70 px-5 py-4">
+          <p className="text-sm text-muted">
+            <span className="text-ink">{newCount} books</span> have arrived since these collections were drawn.
+          </p>
+          {redrawButton("Redraw collections", "btn btn-primary h-9 px-4 text-xs")}
+        </div>
+      ) : (
+        <div className="-mt-4 mb-8 flex items-center justify-end gap-3 text-[11px] text-faint">
+          <span>Drawn {drawnOn}</span>
+          {redrawButton("Redraw", "underline-offset-4 hover:text-ink hover:underline")}
+        </div>
+      )}
+      {error && <p className="-mt-6 mb-8 text-right text-xs text-accent">{error}</p>}
+      {loading && <p className="mb-8 animate-pulse font-serif text-[15px] italic text-faint">Redrawing your collections…</p>}
+      <div className={`transition-opacity duration-300 ${loading ? "opacity-40" : ""}`}>
+        {rows.map((r, i) => (
+          <CollectionRow key={r.key} row={r} coverWidth={coverWidth} onOpen={onOpen} index={i} />
+        ))}
       </div>
     </div>
   );
