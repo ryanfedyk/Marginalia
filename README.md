@@ -11,6 +11,7 @@ A quiet, tactile home for the books you own and the thoughts they leave behind.
   - **Marginalia**: your notes, takeaways, quotes and reactions, with page references.
   - **Companion**: "Catch me up", "Chapter recap" and "Untangle a passage". Answers stream in and are kept spoiler-safe up to the point you say you've reached.
   - **Discovery**: *Similar books* for this title, then a taste profile drawn from your library, ratings and notes, with recommendations that link to Bookshop.org, Amazon, AbeBooks and WorldCat.
+- **Collections**: a Netflix-style view of horizontal rows with evocative, AI-written names drawn from your own books (e.g. "Quiet Lives, Long Shadows"), plus "Fresh on the Shelf", "The Ones You Loved" and "Still Finding Their Place" rows built from your library. Switch between **Shelf** and **Collections** next to the filters.
 - **Ratings**: one to five stars on each book's page (never on the shelf). Ratings are the strongest signal for recommendations and similar books.
 - **Search**: live type-ahead suggestions (Open Library + Google Books) as you type a title, author or ISBN.
 
@@ -94,6 +95,7 @@ src/app/api/shelf      shelf photo → Gemini → { books: [...] }
 src/app/api/companion  streaming recaps, catch-ups and passage untangling
 src/app/api/discover   taste profile and recommendations
 src/app/api/praise     critics' quotes (Gemini with Google Search grounding)
+src/app/api/collections  names and groups the library into collections
 src/app/api/similar    similar books for one title, steered by ratings
 src/app/api/suggest    type-ahead search suggestions
 src/components         Library grid, BookPanel, tabs, dialogs

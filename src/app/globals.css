@@ -172,3 +172,10 @@
     transition-duration: 1ms !important;
   }
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

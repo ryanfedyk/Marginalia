@@ -1,7 +1,7 @@
 "use client";
 
 import type { FirebaseWebConfig } from "./firebase-config";
-import type { BookMetadata, CriticQuote, Recommendation, ShelfCandidate, TasteProfile } from "./types";
+import type { BookMetadata, Collection, CriticQuote, Recommendation, ShelfCandidate, TasteProfile } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   const data = await res.json().catch(() => ({}));
@@ -93,6 +93,17 @@ export async function fetchSimilar(payload: {
     body: JSON.stringify(payload),
   });
   return (await json<{ books: Recommendation[] }>(res)).books;
+}
+
+export async function drawCollections(
+  books: { id: string; title: string; author: string; status: string; rating?: number }[],
+): Promise<Collection[]> {
+  const res = await fetch("/api/collections", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ books }),
+  });
+  return (await json<{ collections: Collection[] }>(res)).collections;
 }
 
 export async function aiStatus(): Promise<{ ai: boolean; model: string; firebase: FirebaseWebConfig | null }> {

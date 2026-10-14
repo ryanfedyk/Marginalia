@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Book, BookMetadata, CompanionEntry, Note, ReadingStatus, TasteProfile } from "./types";
+import type { Book, BookMetadata, Collections, CompanionEntry, Note, ReadingStatus, TasteProfile } from "./types";
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -16,6 +16,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 interface LibraryState {
   books: Book[];
   profile: TasteProfile | null;
+  collections: Collections | null;
   /** Firebase uid this local library belongs to (null = never synced / signed out). */
   ownerUid: string | null;
   /** Returns the existing book if it's already shelved. */
@@ -33,6 +34,7 @@ interface LibraryState {
   addCompanion: (bookId: string, entry: Omit<CompanionEntry, "id" | "createdAt">) => void;
   removeCompanion: (bookId: string, entryId: string) => void;
   setProfile: (p: TasteProfile | null) => void;
+  setCollections: (c: Collections | null) => void;
   importLibrary: (books: Book[]) => number;
   setPraise: (bookId: string, praise: NonNullable<Book["praise"]>) => void;
   /** Cloud sync: apply remote state without touching timestamps. */
@@ -50,6 +52,7 @@ export const useLibrary = create<LibraryState>()(
     (set, get) => ({
       books: [],
       profile: null,
+      collections: null,
       ownerUid: null,
 
       findDuplicate: (meta) =>
@@ -114,6 +117,7 @@ export const useLibrary = create<LibraryState>()(
         })),
 
       setProfile: (profile) => set({ profile }),
+      setCollections: (collections) => set({ collections }),
 
       importLibrary: (incoming) => {
         let added = 0;
@@ -144,7 +148,7 @@ export const useLibrary = create<LibraryState>()(
 
       setOwner: (ownerUid) => set({ ownerUid }),
 
-      resetLocal: () => set({ books: [], profile: null, ownerUid: null }),
+      resetLocal: () => set({ books: [], profile: null, collections: null, ownerUid: null }),
     }),
     {
       name: "marginalia.library.v1",

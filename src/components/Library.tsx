@@ -8,6 +8,7 @@ import { initAccount, useAccount } from "@/lib/sync";
 import { AccountButton } from "./AccountButton";
 import { BookCover } from "./BookCover";
 import { BookPanel } from "./BookPanel";
+import { CollectionsView } from "./CollectionsView";
 import { Dialog } from "./Dialog";
 import { DiscoveryPanel } from "./DiscoveryPanel";
 import { ScanDialog } from "./ScanDialog";
@@ -29,6 +30,23 @@ export function Library() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [menu, setMenu] = useState(false);
+  const [viewPref, setViewPref] = useState<"shelf" | "collections" | null>(null);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("marginalia.view");
+      if (v === "shelf" || v === "collections") setViewPref(v);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const chooseView = (v: "shelf" | "collections") => {
+    setViewPref(v);
+    try {
+      localStorage.setItem("marginalia.view", v);
+    } catch {
+      /* ignore */
+    }
+  };
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +77,10 @@ export function Library() {
     () => books.filter((b) => b.status === "reading").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     [books],
   );
+
+  const canCollect = books.length >= 4;
+  const view = viewPref ?? (books.length >= 6 ? "collections" : "shelf");
+  const showCollections = showReading && canCollect && view === "collections";
 
   const visible = useMemo(() => {
     return books
@@ -156,6 +178,19 @@ export function Library() {
               className="w-40 border-b border-transparent bg-transparent py-0.5 text-sm placeholder:text-faint focus:border-rule focus:outline-none"
             />
           )}
+          {canCollect && filter === "all" && !q && (
+            <div className="flex items-center gap-1 rounded-full border border-rule p-0.5 text-xs">
+              {(["shelf", "collections"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => chooseView(v)}
+                  className={`rounded-full px-3 py-1 capitalize transition ${view === v ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          )}
           <button className="text-sm text-muted hover:text-ink" onClick={() => setModal("discover")}>
             Discover
           </button>
@@ -167,6 +202,10 @@ export function Library() {
       ) : (
         <>
         {showReading && <ReadingNow books={reading} aiReady={aiReady} onOpen={setOpenId} />}
+        {showCollections ? (
+          <CollectionsView books={books} coverWidth={coverWidth} aiReady={aiReady} onOpen={setOpenId} />
+        ) : (
+        <>
         {showReading && reading.length > 0 && visible.length > 0 && <p className="eyebrow mb-8">On the shelf</p>}
         <ul
           data-shelf
@@ -196,6 +235,8 @@ export function Library() {
             <li className="col-span-full py-20 text-center text-sm text-faint">Nothing here yet.</li>
           )}
         </ul>
+        </>
+        )}
         </>
       )}
 

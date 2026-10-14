@@ -83,6 +83,19 @@ export interface Recommendation {
   why: string;
 }
 
+export interface Collection {
+  name: string;
+  blurb: string;
+  bookIds: string[];
+}
+
+export interface Collections {
+  items: Collection[];
+  generatedAt: string;
+  /** Book ids the collections were drawn from, to spot new arrivals. */
+  basisIds: string[];
+}
+
 export interface TasteProfile {
   summary: string;
   threads: string[];

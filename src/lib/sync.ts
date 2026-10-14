@@ -25,7 +25,7 @@ import {
 import { create } from "zustand";
 import type { FirebaseWebConfig } from "./firebase-config";
 import { useLibrary } from "./store";
-import type { Book, TasteProfile } from "./types";
+import type { Book, Collections, TasteProfile } from "./types";
 
 /* ---------- Public state ---------- */
 
@@ -119,6 +119,7 @@ let unsubs: Unsubscribe[] = [];
 const cloud = new Map<string, string>();
 const tombstones = new Set<string>();
 let cloudProfileAt: string | null = null;
+let cloudCollectionsAt: string | null = null;
 let ready = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -171,17 +172,25 @@ function startSync(user: User) {
 
   unsubs.push(
     onSnapshot(doc(db!, "users", uid), (snap) => {
-      const remote = snap.data()?.profile as TasteProfile | undefined;
-      if (!remote) return;
-      cloudProfileAt = remote.generatedAt;
-      const local = useLibrary.getState().profile;
-      if (!local || remote.generatedAt > local.generatedAt) useLibrary.getState().setProfile(remote);
+      const data = snap.data();
+      const remote = data?.profile as TasteProfile | undefined;
+      if (remote) {
+        cloudProfileAt = remote.generatedAt;
+        const local = useLibrary.getState().profile;
+        if (!local || remote.generatedAt > local.generatedAt) useLibrary.getState().setProfile(remote);
+      }
+      const remoteCols = data?.collections as Collections | undefined;
+      if (remoteCols) {
+        cloudCollectionsAt = remoteCols.generatedAt;
+        const local = useLibrary.getState().collections;
+        if (!local || remoteCols.generatedAt > local.generatedAt) useLibrary.getState().setCollections(remoteCols);
+      }
     }),
   );
 
   unsubs.push(
     useLibrary.subscribe((s, prev) => {
-      if (s.books !== prev.books || s.profile !== prev.profile) scheduleFlush(1200);
+      if (s.books !== prev.books || s.profile !== prev.profile || s.collections !== prev.collections) scheduleFlush(1200);
     }),
   );
 
@@ -203,6 +212,7 @@ function stopSync() {
   cloud.clear();
   tombstones.clear();
   cloudProfileAt = null;
+  cloudCollectionsAt = null;
   ready = false;
   uid = null;
 }
@@ -216,7 +226,7 @@ function scheduleFlush(delay: number) {
 async function flush() {
   if (!uid || !db || !ready) return;
   timer = null;
-  const { books, profile } = useLibrary.getState();
+  const { books, profile, collections } = useLibrary.getState();
   const now = new Date().toISOString();
   const writes: { id: string; data: Record<string, unknown> }[] = [];
   const localIds = new Set<string>();
@@ -229,7 +239,12 @@ async function flush() {
     if (!localIds.has(id)) writes.push({ id, data: { id, deleted: true, updatedAt: now } });
   }
   const pushProfile = profile && profile.generatedAt !== cloudProfileAt;
-  if (!writes.length && !pushProfile) {
+  const pushCollections = collections && collections.generatedAt !== cloudCollectionsAt;
+  const userDoc: Record<string, unknown> = {};
+  if (pushProfile) userDoc.profile = profile;
+  if (pushCollections) userDoc.collections = collections;
+  const pushUser = Object.keys(userDoc).length > 0;
+  if (!writes.length && !pushUser) {
     if (navigator.onLine) useAccount.setState({ sync: "synced" });
     return;
   }
@@ -243,13 +258,14 @@ async function flush() {
     } else cloud.set(w.id, w.data.updatedAt as string);
   }
   if (pushProfile) cloudProfileAt = profile!.generatedAt;
+  if (pushCollections) cloudCollectionsAt = collections!.generatedAt;
 
   useAccount.setState({ sync: navigator.onLine ? "syncing" : "offline" });
   const commits: Promise<void>[] = [];
   for (let i = 0; i < Math.max(writes.length, 1); i += 400) {
     const batch = writeBatch(db);
     for (const w of writes.slice(i, i + 400)) batch.set(doc(db, "users", uid, "books", w.id), w.data);
-    if (i === 0 && pushProfile) batch.set(doc(db, "users", uid), { profile }, { merge: true });
+    if (i === 0 && pushUser) batch.set(doc(db, "users", uid), userDoc, { merge: true });
     commits.push(batch.commit());
   }
   try {
