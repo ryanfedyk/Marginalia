@@ -1,7 +1,7 @@
 "use client";
 
 import type { FirebaseWebConfig } from "./firebase-config";
-import type { BookMetadata, CriticQuote, ShelfCandidate, TasteProfile } from "./types";
+import type { BookMetadata, CriticQuote, Recommendation, ShelfCandidate, TasteProfile } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   const data = await res.json().catch(() => ({}));
@@ -36,7 +36,7 @@ export async function readShelf(image: string, mediaType: string): Promise<Shelf
 }
 
 export async function discover(
-  books: { title: string; author: string; status: string; notes: string[] }[],
+  books: { title: string; author: string; status: string; rating?: number; notes: string[] }[],
 ): Promise<Omit<TasteProfile, "generatedAt" | "basis">> {
   const res = await fetch("/api/discover", {
     method: "POST",
@@ -78,6 +78,21 @@ export async function fetchPraise(title: string, authors: string[]): Promise<Cri
     body: JSON.stringify({ title, authors }),
   });
   return (await json<{ quotes: CriticQuote[] }>(res)).quotes;
+}
+
+export async function fetchSimilar(payload: {
+  title: string;
+  authors: string[];
+  rating?: number;
+  owned: string[];
+  favourites: string[];
+}): Promise<Recommendation[]> {
+  const res = await fetch("/api/similar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return (await json<{ books: Recommendation[] }>(res)).books;
 }
 
 export async function aiStatus(): Promise<{ ai: boolean; model: string; firebase: FirebaseWebConfig | null }> {

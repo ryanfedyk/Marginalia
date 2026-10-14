@@ -22,7 +22,11 @@ interface LibraryState {
   findDuplicate: (meta: BookMetadata) => Book | undefined;
   addBook: (meta: BookMetadata, status?: ReadingStatus) => { book: Book; duplicate: boolean };
   removeBook: (id: string) => void;
-  updateBook: (id: string, patch: Partial<Pick<Book, "status" | "progress" | "title" | "authors" | "coverUrl">>) => void;
+  updateBook: (
+    id: string,
+    patch: Partial<Pick<Book, "status" | "progress" | "title" | "authors" | "coverUrl" | "rating">>,
+  ) => void;
+  setSimilar: (bookId: string, similar: NonNullable<Book["similar"]>) => void;
   addNote: (bookId: string, note: Omit<Note, "id" | "createdAt" | "updatedAt">) => void;
   updateNote: (bookId: string, noteId: string, patch: Partial<Pick<Note, "body" | "kind" | "locator">>) => void;
   removeNote: (bookId: string, noteId: string) => void;
@@ -123,6 +127,8 @@ export const useLibrary = create<LibraryState>()(
         return added;
       },
 
+      setSimilar: (bookId, similar) => set((s) => ({ books: touch(s.books, bookId, (b) => ({ ...b, similar })) })),
+
       setPraise: (bookId, praise) => set((s) => ({ books: touch(s.books, bookId, (b) => ({ ...b, praise })) })),
 
       applyRemote: (upserts, deletedIds) =>
@@ -156,4 +162,15 @@ export function useHydrated(): boolean {
     return useLibrary.persist.onFinishHydration(() => setHydrated(true));
   }, []);
   return hydrated;
+}
+
+/** Changes whenever what we know about the reader's taste changes (books, statuses, ratings). */
+export function libraryFingerprint(books: Book[]): string {
+  const sig = books
+    .map((b) => `${b.id}:${b.status}:${b.rating ?? 0}`)
+    .sort()
+    .join("|");
+  let h = 0;
+  for (let i = 0; i < sig.length; i++) h = (h * 31 + sig.charCodeAt(i)) | 0;
+  return `${books.length}-${(h >>> 0).toString(36)}`;
 }

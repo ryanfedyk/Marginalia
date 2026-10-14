@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { discover, marketplaceLinks, resolveTitle } from "@/lib/client";
-import { useLibrary } from "@/lib/store";
+import { libraryFingerprint, useLibrary } from "@/lib/store";
 import type { BookMetadata, Recommendation } from "@/lib/types";
 import { BookCover } from "./BookCover";
 import { ArrowIcon, CheckIcon, PlusIcon, SparkIcon } from "./icons";
@@ -21,10 +21,16 @@ export function DiscoveryPanel({ aiReady }: { aiReady: boolean | null }) {
           title: b.title,
           author: b.authors.join(", "),
           status: b.status,
+          rating: b.rating,
           notes: b.notes.map((n) => `${n.kind}: ${n.body}`),
         })),
       );
-      setProfile({ ...p, generatedAt: new Date().toISOString(), basis: books.length });
+      setProfile({
+        ...p,
+        generatedAt: new Date().toISOString(),
+        basis: books.length,
+        fingerprint: libraryFingerprint(books),
+      });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -32,7 +38,9 @@ export function DiscoveryPanel({ aiReady }: { aiReady: boolean | null }) {
     }
   }
 
-  const stale = profile && profile.basis !== books.length;
+  const stale =
+    profile &&
+    (profile.fingerprint ? profile.fingerprint !== libraryFingerprint(books) : profile.basis !== books.length);
 
   if (!profile) {
     return (
@@ -66,7 +74,7 @@ export function DiscoveryPanel({ aiReady }: { aiReady: boolean | null }) {
         <div className="mt-4 flex items-center gap-3 text-[11px] text-faint">
           <span>
             Drawn {new Date(profile.generatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} from{" "}
-            {profile.basis} books{stale ? " · your library has changed since" : ""}
+            {profile.basis} books{stale ? " · your library or ratings have changed since" : ""}
           </span>
           <button className="underline underline-offset-4 hover:text-ink" disabled={loading} onClick={generate}>
             {loading ? "Redrawing…" : "Redraw"}
@@ -89,7 +97,7 @@ export function DiscoveryPanel({ aiReady }: { aiReady: boolean | null }) {
 
 const resolved = new Map<string, BookMetadata | null>();
 
-function RecommendationItem({ rec }: { rec: Recommendation }) {
+export function RecommendationItem({ rec }: { rec: Recommendation }) {
   const key = `${rec.title}|${rec.author}`;
   const [meta, setMeta] = useState<BookMetadata | null | undefined>(resolved.get(key));
   const { addBook, findDuplicate } = useLibrary();

@@ -7,6 +7,7 @@ interface ShelfEntry {
   title: string;
   author: string;
   status: string;
+  rating?: number;
   notes?: string[];
 }
 
@@ -48,7 +49,7 @@ const PROFILE_JSON_SCHEMA = {
 };
 
 const SYSTEM = `You are a perceptive bookseller reading a customer's personal library.
-Infer their taste from what they own, what they have finished, what they want to read, and especially their own notes and reactions — those carry the most signal.
+Infer their taste from what they own, what they have finished and what they want to read. Their own ratings (1–5 stars) are the strongest signal: lean towards what they rated 4–5 and away from what resembles books they rated 1–2. Their notes and reactions come next.
 
 Recommend real, published books that are not already in the library. Prefer depth over popularity: a mix of a few well-known choices and some less obvious ones. Avoid recommending more than one book by the same author. Each "why" must reference something specific from their library.`;
 
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
   const library = books
     .map((b) => {
       const notes = (b.notes ?? []).slice(0, 6).map((n) => `    - ${n.slice(0, 280)}`).join("\n");
-      return `- ${b.title} — ${b.author || "unknown"} [${b.status}]${notes ? `\n${notes}` : ""}`;
+      return `- ${b.title} — ${b.author || "unknown"} [${b.status}${b.rating ? `, rated ${b.rating}/5` : ""}]${notes ? `\n${notes}` : ""}`;
     })
     .join("\n");
 

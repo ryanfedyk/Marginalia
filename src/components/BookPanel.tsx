@@ -8,6 +8,8 @@ import { BookCover } from "./BookCover";
 import { CompanionTab } from "./CompanionTab";
 import { DiscoveryPanel } from "./DiscoveryPanel";
 import { MarginaliaTab } from "./MarginaliaTab";
+import { Rating } from "./Rating";
+import { SimilarBooks } from "./SimilarBooks";
 import { useEscape } from "./Dialog";
 import { CloseIcon } from "./icons";
 
@@ -92,6 +94,9 @@ export function BookPanel({ bookId, onClose, aiReady }: { bookId: string | null;
                 </button>
               ))}
             </div>
+            <div className="mt-4">
+              <Rating value={book.rating} onChange={(rating) => updateBook(book.id, { rating })} />
+            </div>
           </header>
 
           <nav className="sticky top-0 z-10 -mx-5 flex gap-7 border-b border-rule bg-paper/95 px-5 backdrop-blur sm:-mx-10 sm:px-10">
@@ -113,7 +118,13 @@ export function BookPanel({ bookId, onClose, aiReady }: { bookId: string | null;
           <div key={tab} className="animate-fade-in pt-8">
             {tab === "marginalia" && <MarginaliaTab book={book} />}
             {tab === "companion" && <CompanionTab book={book} aiReady={aiReady} />}
-            {tab === "discovery" && <DiscoveryPanel aiReady={aiReady} />}
+            {tab === "discovery" && (
+              <>
+                <SimilarBooks book={book} aiReady={aiReady} />
+                <div className="my-12 h-px bg-rule" />
+                <DiscoveryPanel aiReady={aiReady} />
+              </>
+            )}
           </div>
         </div>
       </aside>

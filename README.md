@@ -10,7 +10,9 @@ A quiet, tactile home for the books you own and the thoughts they leave behind.
 - **Book page**: a slide-over panel with reading status, plus three tabs:
   - **Marginalia**: your notes, takeaways, quotes and reactions, with page references.
   - **Companion**: "Catch me up", "Chapter recap" and "Untangle a passage". Answers stream in and are kept spoiler-safe up to the point you say you've reached.
-  - **Discovery**: a taste profile drawn from your library and notes, with recommendations that link to Bookshop.org, Amazon, AbeBooks and WorldCat.
+  - **Discovery**: *Similar books* for this title, then a taste profile drawn from your library, ratings and notes, with recommendations that link to Bookshop.org, Amazon, AbeBooks and WorldCat.
+- **Ratings**: one to five stars on each book's page (never on the shelf). Ratings are the strongest signal for recommendations and similar books.
+- **Search**: live type-ahead suggestions (Open Library + Google Books) as you type a title, author or ISBN.
 
 ## Running it
 
@@ -92,6 +94,8 @@ src/app/api/shelf      shelf photo → Gemini → { books: [...] }
 src/app/api/companion  streaming recaps, catch-ups and passage untangling
 src/app/api/discover   taste profile and recommendations
 src/app/api/praise     critics' quotes (Gemini with Google Search grounding)
+src/app/api/similar    similar books for one title, steered by ratings
+src/app/api/suggest    type-ahead search suggestions
 src/components         Library grid, BookPanel, tabs, dialogs
 src/lib                types, store, ISBN maths, server metadata, Gemini client, Firebase sync
 ```

@@ -64,6 +64,10 @@ export interface Book extends BookMetadata {
   companion: CompanionEntry[];
   /** Critics' quotes found via search, cached so we only look them up once. */
   praise?: { quotes: CriticQuote[]; fetchedAt: string };
+  /** The reader's own rating, 1–5. Never shown on the shelf; feeds recommendations. */
+  rating?: number;
+  /** "Similar books" picks for this book, cached. `rating` records what it was based on. */
+  similar?: { items: Recommendation[]; fetchedAt: string; rating?: number };
   addedAt: string;
   updatedAt: string;
 }
@@ -84,6 +88,8 @@ export interface TasteProfile {
   threads: string[];
   recommendations: Recommendation[];
   generatedAt: string;
-  /** Number of books the profile was computed from, to flag staleness. */
+  /** Number of books the profile was computed from. */
   basis: number;
+  /** Library fingerprint (books, statuses, ratings) at generation time, to flag staleness. */
+  fingerprint?: string;
 }
