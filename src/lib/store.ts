@@ -25,7 +25,7 @@ interface LibraryState {
   removeBook: (id: string) => void;
   updateBook: (
     id: string,
-    patch: Partial<Pick<Book, "status" | "progress" | "title" | "authors" | "coverUrl" | "rating">>,
+    patch: Partial<Pick<Book, "status" | "progress" | "title" | "authors" | "coverUrl" | "rating" | "finishedAt" | "startedAt">>,
   ) => void;
   setSimilar: (bookId: string, similar: NonNullable<Book["similar"]>) => void;
   addNote: (bookId: string, note: Omit<Note, "id" | "createdAt" | "updatedAt">) => void;
@@ -81,7 +81,19 @@ export const useLibrary = create<LibraryState>()(
 
       removeBook: (id) => set((s) => ({ books: s.books.filter((b) => b.id !== id) })),
 
-      updateBook: (id, patch) => set((s) => ({ books: touch(s.books, id, (b) => ({ ...b, ...patch })) })),
+      updateBook: (id, patch) =>
+        set((s) => ({
+          books: touch(s.books, id, (b) => {
+            const next = { ...b, ...patch };
+            // Dates follow status changes made in the app, so the timeline builds itself.
+            if (patch.status && patch.status !== b.status) {
+              if (patch.status === "reading" && !b.startedAt) next.startedAt = now();
+              if (patch.status === "finished" && !("finishedAt" in patch)) next.finishedAt = now();
+              if (patch.status !== "finished" && b.status === "finished") next.finishedAt = undefined;
+            }
+            return next;
+          }),
+        })),
 
       addNote: (bookId, note) =>
         set((s) => ({

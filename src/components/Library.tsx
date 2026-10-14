@@ -16,6 +16,7 @@ import { ScanDialog } from "./ScanDialog";
 import { ReadingNow } from "./ReadingNow";
 import { Flashback } from "./Flashback";
 import { MarginsDialog } from "./MarginsDialog";
+import { TimelineDialog } from "./TimelineDialog";
 import { authorKey, titleKey } from "@/lib/flashback";
 import { SearchDialog } from "./SearchDialog";
 import { ShelfDialog } from "./ShelfDialog";
@@ -89,7 +90,7 @@ export function Library() {
   }, [books]);
 
   const account = useAccount();
-  const coverWidth = usePinchZoom(!openId && !modal && !menu && !nav.margins && !nav.collection);
+  const coverWidth = usePinchZoom(!openId && !modal && !menu && !nav.margins && !nav.collection && !nav.timeline);
   const q = query.trim().toLowerCase();
   // On the main view, books in hand get their own section above the shelf.
   const showReading = filter === "all" && !q;
@@ -98,6 +99,10 @@ export function Library() {
     [books],
   );
 
+  const thisYear = new Date().getFullYear();
+  const finishedThisYear = books.filter(
+    (b) => b.status === "finished" && b.finishedAt && new Date(b.finishedAt).getFullYear() === thisYear,
+  ).length;
   const canCollect = books.length >= 4;
   const view = viewPref ?? (books.length >= 6 ? "collections" : "shelf");
   const showCollections = showReading && canCollect && view === "collections";
@@ -151,9 +156,24 @@ export function Library() {
         <div>
           <h1 className="font-serif text-[40px] leading-none tracking-[-0.02em] text-ink-2 italic sm:text-[52px]">Marginalia</h1>
           <p className="mt-3 text-sm text-muted">
-            {hydrated && books.length > 0
-              ? `${books.length} ${books.length === 1 ? "volume" : "volumes"}${counts.reading ? ` · ${counts.reading} in hand` : ""}`
-              : "A quiet home for your books"}
+            {hydrated && books.length > 0 ? (
+              <>
+                {`${books.length} ${books.length === 1 ? "volume" : "volumes"}${counts.reading ? ` · ${counts.reading} in hand` : ""}`}
+                {counts.finished > 0 && (
+                  <>
+                    {" · "}
+                    <button
+                      onClick={() => navOpen({ timeline: "1" })}
+                      className="underline decoration-rule underline-offset-4 transition hover:text-ink hover:decoration-current"
+                    >
+                      {finishedThisYear ? `${finishedThisYear} finished this year` : "your reading life"}
+                    </button>
+                  </>
+                )}
+              </>
+            ) : (
+              "A quiet home for your books"
+            )}
           </p>
         </div>
 
@@ -305,6 +325,12 @@ export function Library() {
       <Dialog open={modal === "discover"} onClose={closeModal} eyebrow="Discovery" title="Taste & next reads" wide>
         <DiscoveryPanel aiReady={aiReady} />
       </Dialog>
+      <TimelineDialog
+        open={Boolean(nav.timeline)}
+        onClose={() => navClose("timeline")}
+        books={books}
+        onOpenBook={(id) => navOpen({ timeline: null, book: id }, { replace: true })}
+      />
       <MarginsDialog
         open={Boolean(nav.margins)}
         onClose={() => navClose("margins")}

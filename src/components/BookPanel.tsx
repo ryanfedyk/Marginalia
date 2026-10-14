@@ -100,6 +100,26 @@ export function BookPanel({ bookId, onClose, aiReady }: { bookId: string | null;
             <div className="mt-4">
               <Rating value={book.rating} onChange={(rating) => updateBook(book.id, { rating })} />
             </div>
+            {book.status === "finished" && (
+              <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-[11px] text-faint hover:text-muted">
+                <span>
+                  {book.finishedAt
+                    ? `Finished ${new Date(book.finishedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}`
+                    : "When did you finish it?"}
+                </span>
+                <span className="underline underline-offset-4">{book.finishedAt ? "change" : "add date"}</span>
+                <input
+                  type="date"
+                  className="sr-only"
+                  max={new Date().toISOString().slice(0, 10)}
+                  value={book.finishedAt ? book.finishedAt.slice(0, 10) : ""}
+                  onChange={(e) =>
+                    updateBook(book.id, { finishedAt: e.target.value ? new Date(`${e.target.value}T12:00:00`).toISOString() : undefined })
+                  }
+                  onClick={(e) => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                />
+              </label>
+            )}
           </header>
 
           <nav className="sticky top-0 z-10 -mx-5 flex gap-7 border-b border-rule bg-paper/95 px-5 backdrop-blur sm:-mx-10 sm:px-10">

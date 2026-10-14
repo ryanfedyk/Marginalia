@@ -64,6 +64,10 @@ export interface Book extends BookMetadata {
   companion: CompanionEntry[];
   /** Critics' quotes found via search, cached so we only look them up once. */
   praise?: { quotes: CriticQuote[]; fetchedAt: string };
+  /** Set when the book is marked Reading. */
+  startedAt?: string;
+  /** Set when the book is marked Finished (editable, to place earlier reads on the timeline). */
+  finishedAt?: string;
   /** The reader's own rating, 1–5. Never shown on the shelf; feeds recommendations. */
   rating?: number;
   /** "Similar books" picks for this book, cached. `rating` records what it was based on. */
