@@ -3,7 +3,7 @@
 A quiet, tactile home for the books you own and the thoughts they leave behind.
 
 - **Library**: a calm gallery of canonical cover art. No badges, stars or feeds. Pinch (or trackpad-pinch) to resize the covers.
-- **Currently reading**: books in hand sit above the shelf, each with a critic's line about it. Quotes are found with Gemini + Google Search, and a different one appears on each visit.
+- **Currently reading**: books in hand sit above the shelf, each with a critic's line about it. Quotes come from the book's Wikipedia "Reception" section (Gemini picks the lines, and each is checked word for word against the source), with Gemini + Google Search as a fallback. A different one appears on each visit.
 - **Google sign-in**: sign in to keep the library in your account (Firebase Auth + Firestore), synced live across devices and usable offline.
 - **Scan a barcode**: live camera ISBN scanning. It uses the native `BarcodeDetector` where the browser has it and falls back to `html5-qrcode` elsewhere. Metadata comes from Open Library, with Google Books as a fallback. Covers are always the canonical Open Library art (`covers.openlibrary.org/b/isbn/{isbn}-L.jpg`) and never a camera snapshot.
 - **Photograph a shelf**: Gemini reads every spine in one photo and returns `{ "books": [{ "title", "author" }] }` (JSON-schema constrained). You review the matches, untick any mistakes and shelve the rest in one go.
@@ -99,7 +99,7 @@ src/app/api/resolve    title + author → metadata (for shelf photos and recomme
 src/app/api/shelf      shelf photo → Gemini → { books: [...] }
 src/app/api/companion  streaming recaps, catch-ups and passage untangling
 src/app/api/discover   taste profile and recommendations
-src/app/api/praise     critics' quotes (Gemini with Google Search grounding)
+src/app/api/praise     critics' quotes (Wikipedia reception, verified; Google Search fallback)
 src/app/api/collections  names and groups the library into collections
 src/app/api/similar    similar books for one title, steered by ratings
 src/app/api/suggest    type-ahead search suggestions
