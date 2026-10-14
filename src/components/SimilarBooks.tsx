@@ -72,7 +72,14 @@ export function SimilarBooks({ book, aiReady }: { book: Book; aiReady: boolean |
           ))}
         </ul>
       )}
-      {error && <p className="mt-3 text-sm text-accent">{error}</p>}
+      {error && (
+        <p className="mt-3 text-sm text-accent">
+          {error}{" "}
+          <button className="text-ink underline underline-offset-4" onClick={load}>
+            Try again
+          </button>
+        </p>
+      )}
       {items.length > 0 && (
         <ul className={`transition-opacity ${loading ? "opacity-50" : ""}`}>
           {items.map((r) => (

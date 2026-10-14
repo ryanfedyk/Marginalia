@@ -5,6 +5,51 @@ import type { z } from "zod";
 /** Gemini powers every AI feature. Override the model with GEMINI_MODEL. */
 export const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
+/**
+ * Tried in order when the main model is overloaded or unavailable.
+ * Override with GEMINI_FALLBACK_MODELS (comma-separated).
+ */
+export const FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-3.5-flash,gemini-2.5-flash")
+  .split(",")
+  .map((m) => m.trim())
+  .filter((m) => m && m !== MODEL);
+
+/** Overloaded / transient: worth retrying, then trying another model. */
+const TRANSIENT = new Set([429, 500, 502, 503, 504]);
+/** This model can't serve the request at all: skip straight to the next one. */
+const SKIP_MODEL = new Set([404]);
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Run a Gemini call with retries and model fallback, so a busy model doesn't surface as an error.
+ * Each model gets a few attempts with backoff on transient errors; then the next model is tried.
+ */
+export async function withFallback<T>(
+  call: (model: string) => Promise<T>,
+  opts: { models?: string[]; attempts?: number; baseDelayMs?: number } = {},
+): Promise<T> {
+  const models = opts.models ?? [MODEL, ...FALLBACK_MODELS];
+  const attempts = opts.attempts ?? 3;
+  const base = opts.baseDelayMs ?? 700;
+  let lastErr: unknown;
+  for (const model of models) {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await call(model);
+      } catch (err) {
+        lastErr = err;
+        const status = err instanceof ApiError ? err.status : undefined;
+        if (status !== undefined && SKIP_MODEL.has(status)) break;
+        if (status === undefined || !TRANSIENT.has(status)) throw err;
+        if (i < attempts - 1) await sleep(base * 2 ** i + Math.random() * 250);
+      }
+    }
+    console.warn(`Gemini model ${model} unavailable, trying next fallback`);
+  }
+  throw lastErr;
+}
+
 function apiKey(): string | undefined {
   return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 }
@@ -39,15 +84,17 @@ export async function structured<T>(opts: {
   schema: z.ZodType<T>;
   jsonSchema: Record<string, unknown>;
 }): Promise<T> {
-  const res = await getClient().models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: toParts(opts.content) }],
-    config: {
-      systemInstruction: opts.system,
-      responseMimeType: "application/json",
-      responseJsonSchema: opts.jsonSchema,
-    },
-  });
+  const res = await withFallback((model) =>
+    getClient().models.generateContent({
+      model,
+      contents: [{ role: "user", parts: toParts(opts.content) }],
+      config: {
+        systemInstruction: opts.system,
+        responseMimeType: "application/json",
+        responseJsonSchema: opts.jsonSchema,
+      },
+    }),
+  );
   const text = res.text;
   if (!text) {
     const reason = res.promptFeedback?.blockReason ?? res.candidates?.[0]?.finishReason;
@@ -61,11 +108,13 @@ export async function structured<T>(opts: {
  * (Search grounding and JSON-schema mode aren't combined, so the JSON is extracted leniently.)
  */
 export async function searchGroundedJson<T>(opts: { system: string; prompt: string }): Promise<T> {
-  const res = await getClient().models.generateContent({
-    model: MODEL,
-    contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
-    config: { systemInstruction: opts.system, tools: [{ googleSearch: {} }] },
-  });
+  const res = await withFallback((model) =>
+    getClient().models.generateContent({
+      model,
+      contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+      config: { systemInstruction: opts.system, tools: [{ googleSearch: {} }] },
+    }),
+  );
   const text = res.text ?? "";
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
@@ -79,11 +128,14 @@ export async function searchGroundedJson<T>(opts: { system: string; prompt: stri
 
 /** Stream plain prose back to the browser as a text/plain body. */
 export async function streamText(opts: { system: string; content: Content }): Promise<Response> {
-  const stream = await getClient().models.generateContentStream({
-    model: MODEL,
-    contents: [{ role: "user", parts: toParts(opts.content) }],
-    config: { systemInstruction: opts.system },
-  });
+  // Retries and fallback apply to opening the stream; once text is flowing we stay on that model.
+  const stream = await withFallback((model) =>
+    getClient().models.generateContentStream({
+      model,
+      contents: [{ role: "user", parts: toParts(opts.content) }],
+      config: { systemInstruction: opts.system },
+    }),
+  );
 
   const encoder = new TextEncoder();
   let cancelled = false;
@@ -124,7 +176,11 @@ export function errorResponse(err: unknown): Response {
   }
   if (err instanceof AIRefusalError) return Response.json({ error: err.message }, { status: 422 });
   if (err instanceof ApiError) {
-    if (err.status === 429) return Response.json({ error: "Gemini is busy right now — try again in a moment." }, { status: 429 });
+    if (TRANSIENT.has(err.status))
+      return Response.json(
+        { error: "Gemini is very busy right now. Please try again in a minute." },
+        { status: err.status === 429 ? 429 : 503 },
+      );
     if (err.status === 400 && /api key/i.test(err.message))
       return Response.json({ error: "The Gemini API key was rejected." }, { status: 502 });
     if (err.status === 401 || err.status === 403)
