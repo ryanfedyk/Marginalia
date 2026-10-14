@@ -20,6 +20,15 @@ describe("withFallback", () => {
     expect(call.mock.calls.map((c) => c[0])).toEqual(["a", "a", "a", "b"]);
   });
 
+  it("doesn't hammer a model whose quota is used up; moves on immediately", async () => {
+    const call = vi.fn(async (m: string) => {
+      if (m === "a") throw new ApiError({ message: "You exceeded your current quota, please check your plan and billing details.", status: 429 });
+      return m;
+    });
+    await expect(withFallback(call, { models: ["a", "b"], baseDelayMs: 1 })).resolves.toBe("b");
+    expect(call.mock.calls.map((c) => c[0])).toEqual(["a", "b"]);
+  });
+
   it("skips a model that doesn't exist (404) without retrying it", async () => {
     const call = vi.fn(async (m: string) => {
       if (m === "a") throw apiErr(404);

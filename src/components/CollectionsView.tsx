@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { drawCollections } from "@/lib/client";
+import { aiCoolingDown, drawCollections } from "@/lib/client";
 import { useLibrary } from "@/lib/store";
 import type { Book } from "@/lib/types";
 import { BookCover } from "./BookCover";
@@ -53,7 +53,7 @@ export function CollectionsView({
 
   // Draw automatically the first time.
   useEffect(() => {
-    if (aiReady && !collections && books.length >= 4 && !drawing) void draw();
+    if (aiReady && !collections && books.length >= 4 && !drawing && !aiCoolingDown()) void draw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiReady, collections, books.length]);
 
@@ -99,7 +99,7 @@ export function CollectionsView({
   if (!collections) {
     return (
       <div>
-        {loading || (aiReady && books.length >= 4) ? (
+        {loading || (aiReady && books.length >= 4 && !error) ? (
           <>
             <p className="mb-10 animate-pulse font-serif text-[15px] italic text-faint">Drawing your collections…</p>
             {[0, 1].map((i) => (

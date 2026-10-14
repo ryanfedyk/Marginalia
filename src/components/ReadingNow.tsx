@@ -1,29 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchPraise } from "@/lib/client";
+import { aiCoolingDown, fetchPraise } from "@/lib/client";
 import { useLibrary } from "@/lib/store";
 import type { Book, CriticQuote } from "@/lib/types";
 import { BookCover } from "./BookCover";
 
 const STALE_MS = 1000 * 60 * 60 * 24 * 30;
 const inflight = new Set<string>();
+/** Don't retry a failed lookup on every render; wait a while. */
+const failedAt = new Map<string, number>();
+const RETRY_AFTER_MS = 30 * 60_000;
 
 /** The books in hand, set apart from the shelf, each with a critic's line that changes every visit. */
 export function ReadingNow({ books, aiReady, onOpen }: { books: Book[]; aiReady: boolean | null; onOpen: (id: string) => void }) {
   const setPraise = useLibrary((s) => s.setPraise);
+  const [, rerender] = useState(0);
 
   // Look up critics' quotes once per book (refreshed monthly).
   useEffect(() => {
-    if (!aiReady) return;
+    if (!aiReady || aiCoolingDown()) return;
     for (const b of books) {
       const fresh = b.praise && Date.now() - new Date(b.praise.fetchedAt).getTime() < STALE_MS;
       if (fresh || inflight.has(b.id)) continue;
+      if (Date.now() - (failedAt.get(b.id) ?? 0) < RETRY_AFTER_MS) continue;
       inflight.add(b.id);
       fetchPraise(b.title, b.authors)
         .then((quotes) => setPraise(b.id, { quotes, fetchedAt: new Date().toISOString() }))
-        .catch(() => {})
-        .finally(() => inflight.delete(b.id));
+        .catch(() => failedAt.set(b.id, Date.now()))
+        .finally(() => {
+          inflight.delete(b.id);
+          rerender((n) => n + 1);
+        });
+      rerender((n) => n + 1);
     }
   }, [books, aiReady, setPraise]);
 
@@ -47,7 +56,7 @@ export function ReadingNow({ books, aiReady, onOpen }: { books: Book[]; aiReady:
                 <p className={`font-serif leading-tight text-ink-2 ${solo ? "text-2xl sm:text-[30px]" : "text-xl sm:text-2xl"}`}>{b.title}</p>
                 <p className="mt-1 text-sm text-muted">{b.authors.join(", ")}</p>
                 {b.progress && <p className="mt-1 text-xs text-faint">At {b.progress}</p>}
-                <Praise book={b} large={solo} loading={Boolean(aiReady) && !b.praise} />
+                <Praise book={b} large={solo} loading={Boolean(aiReady) && !b.praise && inflight.has(b.id)} />
               </div>
             </button>
           </li>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fetchSimilar } from "@/lib/client";
+import { aiCoolingDown, fetchSimilar } from "@/lib/client";
 import { useLibrary } from "@/lib/store";
 import type { Book } from "@/lib/types";
 import { RecommendationItem } from "./DiscoveryPanel";
@@ -38,7 +38,7 @@ export function SimilarBooks({ book, aiReady }: { book: Book; aiReady: boolean |
   const stale = !book.similar || book.similar.rating !== book.rating;
   const key = `${book.id}:${book.rating ?? 0}`;
   useEffect(() => {
-    if (!aiReady || !stale || requested.current === key) return;
+    if (!aiReady || !stale || requested.current === key || aiCoolingDown()) return;
     requested.current = key;
     const t = setTimeout(load, 600); // let a quick run of star taps settle
     return () => clearTimeout(t);
@@ -86,6 +86,11 @@ export function SimilarBooks({ book, aiReady }: { book: Book; aiReady: boolean |
             <RecommendationItem key={`${r.title}|${r.author}`} rec={r} />
           ))}
         </ul>
+      )}
+      {!loading && !error && !book.similar && aiReady && (
+        <button className="btn btn-ghost mt-4 h-9 text-xs" onClick={load}>
+          Find similar books
+        </button>
       )}
       {!loading && !error && book.similar && items.length === 0 && (
         <p className="mt-3 text-sm text-faint">Nothing close enough to suggest yet.</p>

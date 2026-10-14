@@ -3,8 +3,36 @@
 import type { FirebaseWebConfig } from "./firebase-config";
 import type { BookMetadata, Collection, CriticQuote, Recommendation, ShelfCandidate, TasteProfile } from "./types";
 
+const COOLDOWN_KEY = "marginalia.aiCooldownUntil";
+let cooldownUntil = 0;
+
+/**
+ * After Gemini says the plan limit is reached, automatic AI features (critic quotes, collections,
+ * similar books) pause for a while so they don't keep spending the allowance. Buttons still work.
+ */
+export function aiCoolingDown(): boolean {
+  if (!cooldownUntil && typeof sessionStorage !== "undefined") {
+    try {
+      cooldownUntil = Number(sessionStorage.getItem(COOLDOWN_KEY)) || 0;
+    } catch {
+      /* ignore */
+    }
+  }
+  return Date.now() < cooldownUntil;
+}
+
+function startCooldown(minutes: number) {
+  cooldownUntil = Date.now() + minutes * 60_000;
+  try {
+    sessionStorage.setItem(COOLDOWN_KEY, String(cooldownUntil));
+  } catch {
+    /* ignore */
+  }
+}
+
 async function json<T>(res: Response): Promise<T> {
   const data = await res.json().catch(() => ({}));
+  if (res.status === 429) startCooldown((data as { code?: string }).code === "quota" ? 15 : 2);
   if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`);
   return data as T;
 }

@@ -27,6 +27,7 @@ npm run dev                  # http://localhost:3000
 |---|---|
 | `GEMINI_API_KEY` | Required for shelf photos, Companion and Discovery. Get one at [Google AI Studio](https://aistudio.google.com/apikey). Scanning and search work without it. |
 | `GEMINI_MODEL` | Optional model override. The default is `gemini-3.8-flash`. |
+| `GEMINI_FALLBACK_MODELS` | Optional comma-separated backups tried when the main model is busy or out of quota. The default is `gemini-3.5-flash,gemini-3.1-flash-lite`. |
 | `GOOGLE_BOOKS_API_KEY` | Optional. Raises Google Books rate limits for the fallback lookup. |
 
 The camera only works on `https://` or `localhost`. Cloud Run gives you an https address automatically.
@@ -83,6 +84,8 @@ Each book is stored at `users/{uid}/books/{bookId}`. Conflicts resolve per book,
 ## Notes
 
 - Signed out, your library is stored in the browser (localStorage). Signed in, it lives in Firestore. **Export** and **Import** (JSON) are in the footer either way.
+- **Diagnostics:** open `/api/status?check=1` on the live site to test every Gemini model with the real key (text, JSON and search requests). Results are cached for 60 seconds.
+- **Quota:** a free-tier Gemini key runs out quickly with a large library. Turn on billing for the key's project in Google AI Studio. When the limit is hit, automatic AI features pause for 15 minutes; buttons still work.
 - All AI features run on Google Gemini through the official `@google/genai` SDK. Shelf reading and Discovery use JSON-schema structured output.
 - `npm test` runs the unit tests for ISBN handling and metadata lookup. `npm run build` type-checks and builds the app.
 

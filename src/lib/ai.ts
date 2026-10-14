@@ -9,7 +9,7 @@ export const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
  * Tried in order when the main model is overloaded or unavailable.
  * Override with GEMINI_FALLBACK_MODELS (comma-separated).
  */
-export const FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-3.5-flash,gemini-2.5-flash")
+export const FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-3.5-flash,gemini-3.1-flash-lite")
   .split(",")
   .map((m) => m.trim())
   .filter((m) => m && m !== MODEL);
@@ -18,6 +18,11 @@ export const FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-3.
 const TRANSIENT = new Set([429, 500, 502, 503, 504]);
 /** This model can't serve this request (missing, or doesn't support a feature): try the next one. */
 const SKIP_MODEL = new Set([400, 404]);
+
+/** Plan quota used up for this model: retrying won't help, but another model may have its own allowance. */
+export function isQuotaError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 429 && /quota|billing/i.test(err.message);
+}
 
 /** Key problems are the same on every model, so they're never worth a fallback. */
 function isKeyError(err: ApiError): boolean {
@@ -60,7 +65,7 @@ export async function withFallback<T>(
         const status = err instanceof ApiError ? err.status : undefined;
         if (err instanceof ApiError && isKeyError(err)) throw err;
         console.warn(`Gemini ${model} failed (${status ?? "error"}): ${geminiReason(err)}`);
-        if (status !== undefined && SKIP_MODEL.has(status)) break;
+        if ((status !== undefined && SKIP_MODEL.has(status)) || isQuotaError(err)) break;
         if (status === undefined || !TRANSIENT.has(status)) throw err;
         if (i < attempts - 1) await sleep(base * 2 ** i + Math.random() * 250);
       }
@@ -196,6 +201,15 @@ export function errorResponse(err: unknown): Response {
   }
   if (err instanceof AIRefusalError) return Response.json({ error: err.message }, { status: 422 });
   if (err instanceof ApiError) {
+    if (isQuotaError(err))
+      return Response.json(
+        {
+          error:
+            "Your Gemini key has reached its usage limit. Turn on billing for it in Google AI Studio, or try again later.",
+          code: "quota",
+        },
+        { status: 429 },
+      );
     if (TRANSIENT.has(err.status))
       return Response.json(
         { error: "Gemini is very busy right now. Please try again in a minute." },
