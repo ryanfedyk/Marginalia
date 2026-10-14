@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { aiStatus } from "@/lib/client";
 import { useHydrated, useLibrary } from "@/lib/store";
 import { STATUS_LABELS, type Book, type ReadingStatus } from "@/lib/types";
+import { navClose, navOpen, useNav } from "@/lib/nav";
 import { initAccount, useAccount } from "@/lib/sync";
 import { AccountButton } from "./AccountButton";
 import { BookCover } from "./BookCover";
@@ -27,8 +28,13 @@ export function Library() {
   const importLibrary = useLibrary((s) => s.importLibrary);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [modal, setModal] = useState<Modal>(null);
+  // Open book and dialogs live in the URL, so Back/Forward work (see lib/nav.ts).
+  const nav = useNav();
+  const openId = hydrated && nav.book && books.some((b) => b.id === nav.book) ? nav.book : null;
+  const modal: Modal =
+    nav.add === "scan" || nav.add === "shelf" || nav.add === "search" ? nav.add : nav.discover ? "discover" : null;
+  const setOpenId = (id: string) => navOpen({ book: id });
+  const closeModal = () => navClose(modal === "discover" ? "discover" : "add");
   const [menu, setMenu] = useState(false);
   const [viewPref, setViewPref] = useState<"shelf" | "collections" | null>(null);
   useEffect(() => {
@@ -94,11 +100,11 @@ export function Library() {
 
   const openModal = (m: Modal) => {
     setMenu(false);
-    setModal(m);
+    if (m) navOpen(m === "discover" ? { discover: "1" } : { add: m });
   };
+  // From an add dialog straight to the book: the book takes the dialog's place in history.
   const openBook = (id: string) => {
-    setModal(null);
-    setOpenId(id);
+    navOpen({ add: null, book: id }, { replace: true });
   };
 
   function exportLibrary() {
@@ -191,7 +197,7 @@ export function Library() {
               ))}
             </div>
           )}
-          <button className="text-sm text-muted hover:text-ink" onClick={() => setModal("discover")}>
+          <button className="text-sm text-muted hover:text-ink" onClick={() => openModal("discover")}>
             Discover
           </button>
         </nav>
@@ -258,13 +264,13 @@ export function Library() {
         </footer>
       )}
 
-      <ScanDialog open={modal === "scan"} onClose={() => setModal(null)} onOpenBook={openBook} />
-      <ShelfDialog open={modal === "shelf"} onClose={() => setModal(null)} />
-      <SearchDialog open={modal === "search"} onClose={() => setModal(null)} onOpenBook={openBook} />
-      <Dialog open={modal === "discover"} onClose={() => setModal(null)} eyebrow="Discovery" title="Taste & next reads" wide>
+      <ScanDialog open={modal === "scan"} onClose={closeModal} onOpenBook={openBook} />
+      <ShelfDialog open={modal === "shelf"} onClose={closeModal} />
+      <SearchDialog open={modal === "search"} onClose={closeModal} onOpenBook={openBook} />
+      <Dialog open={modal === "discover"} onClose={closeModal} eyebrow="Discovery" title="Taste & next reads" wide>
         <DiscoveryPanel aiReady={aiReady} />
       </Dialog>
-      <BookPanel bookId={openId} onClose={() => setOpenId(null)} aiReady={aiReady} />
+      <BookPanel bookId={openId} onClose={() => navClose("book")} aiReady={aiReady} />
     </div>
   );
 }

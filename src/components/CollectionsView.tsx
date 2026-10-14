@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { navClose, navOpen, useNav } from "@/lib/nav";
 import { aiCoolingDown, drawCollections } from "@/lib/client";
 import { useLibrary } from "@/lib/store";
 import type { Book } from "@/lib/types";
@@ -35,7 +36,6 @@ export function CollectionsView({
   const setCollections = useLibrary((s) => s.setCollections);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [discovering, setDiscovering] = useState<Row | null>(null);
 
   async function draw() {
     if (drawing) return;
@@ -98,6 +98,11 @@ export function CollectionsView({
     }
     return out;
   }, [books, collections]);
+
+  // "Discover more" is a history step too: ?collection=<name>
+  const nav = useNav();
+  const discovering = nav.collection ? (rows.find((r) => r.name === nav.collection && r.discover) ?? null) : null;
+  const setDiscovering = (r: Row) => navOpen({ collection: r.name });
 
   const newCount = collections ? books.filter((b) => !collections.basisIds.includes(b.id)).length : 0;
   const worthRedrawing = newCount >= Math.max(3, Math.round((collections?.basisIds.length ?? 0) * 0.15));
@@ -163,7 +168,7 @@ export function CollectionsView({
           <CollectionRow key={r.key} row={r} coverWidth={coverWidth} onOpen={onOpen} onDiscover={setDiscovering} index={i} />
         ))}
       </div>
-      <Dialog open={Boolean(discovering)} onClose={() => setDiscovering(null)} eyebrow="Discover more" title={discovering?.name ?? ""} wide>
+      <Dialog open={Boolean(discovering)} onClose={() => navClose("collection")} eyebrow="Discover more" title={discovering?.name ?? ""} wide>
         {discovering && (
           <CollectionDiscover
             key={discovering.key}
