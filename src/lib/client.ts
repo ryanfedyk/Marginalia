@@ -23,7 +23,9 @@ export async function suggest(q: string, signal?: AbortSignal): Promise<Suggesti
 export async function resolveTitle(title: string, author?: string): Promise<BookMetadata> {
   const q = new URLSearchParams({ title });
   if (author) q.set("author", author);
-  return (await json<{ book: BookMetadata }>(await fetch(`/api/resolve?${q}`))).book;
+  const { book } = await json<{ book: BookMetadata | null }>(await fetch(`/api/resolve?${q}`));
+  if (!book) throw new Error("No match found.");
+  return book;
 }
 
 export async function readShelf(image: string, mediaType: string): Promise<ShelfCandidate[]> {

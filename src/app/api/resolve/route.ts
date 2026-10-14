@@ -6,6 +6,6 @@ export async function GET(req: Request) {
   const author = params.get("author")?.trim() || undefined;
   if (!title) return Response.json({ error: "Missing title." }, { status: 400 });
   const book = await resolveTitle(title, author);
-  if (!book) return Response.json({ error: "No match found." }, { status: 404 });
-  return Response.json({ book });
+  // No match is a normal outcome (e.g. an obscure recommendation), so it isn't an error.
+  return Response.json({ book: book ?? null });
 }

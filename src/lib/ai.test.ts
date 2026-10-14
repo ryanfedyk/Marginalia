@@ -1,6 +1,6 @@
 import { ApiError } from "@google/genai";
 import { describe, expect, it, vi } from "vitest";
-import { withFallback } from "./ai";
+import { geminiReason, withFallback } from "./ai";
 
 const apiErr = (status: number) => new ApiError({ message: `status ${status}`, status });
 
@@ -29,10 +29,27 @@ describe("withFallback", () => {
     expect(call).toHaveBeenCalledTimes(2);
   });
 
-  it("does not retry non-transient errors like a bad key", async () => {
-    const call = vi.fn().mockRejectedValue(apiErr(400));
-    await expect(withFallback(call, { models: ["a", "b"], baseDelayMs: 1 })).rejects.toThrow("status 400");
+  it("never retries or falls back on a key problem", async () => {
+    const call = vi.fn().mockRejectedValue(new ApiError({ message: "API key not valid. Please pass a valid API key.", status: 400 }));
+    await expect(withFallback(call, { models: ["a", "b"], baseDelayMs: 1 })).rejects.toThrow("API key not valid");
     expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  it("tries the next model when one rejects a request (400) it can't serve", async () => {
+    const call = vi.fn(async (m: string) => {
+      if (m === "a") throw apiErr(400);
+      return m;
+    });
+    await expect(withFallback(call, { models: ["a", "b"], baseDelayMs: 1 })).resolves.toBe("b");
+    expect(call.mock.calls.map((c) => c[0])).toEqual(["a", "b"]);
+  });
+
+  it("extracts Google's reason and hides anything key-like", () => {
+    const err = new ApiError({
+      message: '{"error":{"code":400,"message":"Tool use with a response mime type is unsupported for key AIzaSyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","status":"INVALID_ARGUMENT"}}',
+      status: 400,
+    });
+    expect(geminiReason(err)).toBe("Tool use with a response mime type is unsupported for key [key]");
   });
 
   it("gives up with the last error when every model is down", async () => {

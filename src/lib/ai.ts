@@ -16,8 +16,26 @@ export const FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-3.
 
 /** Overloaded / transient: worth retrying, then trying another model. */
 const TRANSIENT = new Set([429, 500, 502, 503, 504]);
-/** This model can't serve the request at all: skip straight to the next one. */
-const SKIP_MODEL = new Set([404]);
+/** This model can't serve this request (missing, or doesn't support a feature): try the next one. */
+const SKIP_MODEL = new Set([400, 404]);
+
+/** Key problems are the same on every model, so they're never worth a fallback. */
+function isKeyError(err: ApiError): boolean {
+  return err.status === 401 || err.status === 403 || /api[ _-]?key/i.test(err.message);
+}
+
+/** Google's human-readable reason, without anything that looks like a key. */
+export function geminiReason(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  let msg = raw;
+  try {
+    const start = raw.indexOf("{");
+    if (start >= 0) msg = JSON.parse(raw.slice(start))?.error?.message ?? raw;
+  } catch {
+    /* not JSON */
+  }
+  return msg.replace(/AIza[0-9A-Za-z_-]{20,}/g, "[key]").replace(/\s+/g, " ").trim().slice(0, 220);
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,6 +58,8 @@ export async function withFallback<T>(
       } catch (err) {
         lastErr = err;
         const status = err instanceof ApiError ? err.status : undefined;
+        if (err instanceof ApiError && isKeyError(err)) throw err;
+        console.warn(`Gemini ${model} failed (${status ?? "error"}): ${geminiReason(err)}`);
         if (status !== undefined && SKIP_MODEL.has(status)) break;
         if (status === undefined || !TRANSIENT.has(status)) throw err;
         if (i < attempts - 1) await sleep(base * 2 ** i + Math.random() * 250);
@@ -181,12 +201,54 @@ export function errorResponse(err: unknown): Response {
         { error: "Gemini is very busy right now. Please try again in a minute." },
         { status: err.status === 429 ? 429 : 503 },
       );
-    if (err.status === 400 && /api key/i.test(err.message))
-      return Response.json({ error: "The Gemini API key was rejected." }, { status: 502 });
-    if (err.status === 401 || err.status === 403)
-      return Response.json({ error: "The Gemini API key was rejected." }, { status: 502 });
-    return Response.json({ error: `Gemini request failed (${err.status}).` }, { status: 502 });
+    console.error("Gemini error", err.status, geminiReason(err));
+    if (isKeyError(err))
+      return Response.json({ error: `The Gemini API key was rejected: ${geminiReason(err)}` }, { status: 502 });
+    return Response.json({ error: `Gemini couldn’t answer (${err.status}): ${geminiReason(err)}` }, { status: 502 });
   }
   console.error(err);
-  return Response.json({ error: "Something went wrong." }, { status: 500 });
+  return Response.json({ error: `Something went wrong: ${geminiReason(err)}` }, { status: 500 });
+}
+
+/** Probe each model with the three kinds of request the app makes. Used by /api/status?check=1. */
+export async function diagnose(): Promise<Record<string, unknown>> {
+  if (!aiConfigured()) return { key: "missing" };
+  const client = getClient();
+  const probe = async (fn: () => Promise<{ text?: string }>) => {
+    const t = Date.now();
+    try {
+      const res = await Promise.race([
+        fn(),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timed out after 45s")), 45000)),
+      ]);
+      return `ok (${Date.now() - t} ms)${res.text ? "" : " but empty reply"}`;
+    } catch (err) {
+      return `FAILED ${err instanceof ApiError ? err.status : ""}: ${geminiReason(err)}`;
+    }
+  };
+  const models = [MODEL, ...FALLBACK_MODELS];
+  const results = await Promise.all(
+    models.map(async (model) => ({
+      model,
+      text: await probe(() => client.models.generateContent({ model, contents: "Reply with the word OK." })),
+      json: await probe(() =>
+        client.models.generateContent({
+          model,
+          contents: "Return a JSON object with ok set to true.",
+          config: {
+            responseMimeType: "application/json",
+            responseJsonSchema: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] },
+          },
+        }),
+      ),
+      search: await probe(() =>
+        client.models.generateContent({
+          model,
+          contents: "Who wrote the novel Stoner? One line.",
+          config: { tools: [{ googleSearch: {} }] },
+        }),
+      ),
+    })),
+  );
+  return { key: "configured", primary: MODEL, results };
 }
