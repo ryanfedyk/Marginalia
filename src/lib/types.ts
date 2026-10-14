@@ -87,11 +87,15 @@ export interface Collection {
   name: string;
   blurb: string;
   bookIds: string[];
+  /** "Discover more" picks for this collection, cached. */
+  recs?: { items: Recommendation[]; fetchedAt: string };
 }
 
 export interface Collections {
   items: Collection[];
   generatedAt: string;
+  /** Last change of any kind (e.g. new "Discover more" picks); drives sync. */
+  updatedAt?: string;
   /** Book ids the collections were drawn from, to spot new arrivals. */
   basisIds: string[];
 }

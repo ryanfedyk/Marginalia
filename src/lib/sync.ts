@@ -181,9 +181,10 @@ function startSync(user: User) {
       }
       const remoteCols = data?.collections as Collections | undefined;
       if (remoteCols) {
-        cloudCollectionsAt = remoteCols.generatedAt;
+        const stamp = (c: Collections) => c.updatedAt ?? c.generatedAt;
+        cloudCollectionsAt = stamp(remoteCols);
         const local = useLibrary.getState().collections;
-        if (!local || remoteCols.generatedAt > local.generatedAt) useLibrary.getState().setCollections(remoteCols);
+        if (!local || stamp(remoteCols) > stamp(local)) useLibrary.getState().setCollections(remoteCols);
       }
     }),
   );
@@ -239,7 +240,7 @@ async function flush() {
     if (!localIds.has(id)) writes.push({ id, data: { id, deleted: true, updatedAt: now } });
   }
   const pushProfile = profile && profile.generatedAt !== cloudProfileAt;
-  const pushCollections = collections && collections.generatedAt !== cloudCollectionsAt;
+  const pushCollections = collections && (collections.updatedAt ?? collections.generatedAt) !== cloudCollectionsAt;
   const userDoc: Record<string, unknown> = {};
   if (pushProfile) userDoc.profile = profile;
   if (pushCollections) userDoc.collections = collections;
@@ -258,7 +259,7 @@ async function flush() {
     } else cloud.set(w.id, w.data.updatedAt as string);
   }
   if (pushProfile) cloudProfileAt = profile!.generatedAt;
-  if (pushCollections) cloudCollectionsAt = collections!.generatedAt;
+  if (pushCollections) cloudCollectionsAt = collections!.updatedAt ?? collections!.generatedAt;
 
   useAccount.setState({ sync: navigator.onLine ? "syncing" : "offline" });
   const commits: Promise<void>[] = [];

@@ -136,6 +136,21 @@ export async function drawCollections(
   return (await json<{ collections: Collection[] }>(res)).collections;
 }
 
+export async function fetchCollectionRecs(payload: {
+  name: string;
+  blurb: string;
+  books: string[];
+  owned: string[];
+  favourites: string[];
+}): Promise<Recommendation[]> {
+  const res = await fetch("/api/collection-recs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return (await json<{ books: Recommendation[] }>(res)).books;
+}
+
 export async function aiStatus(): Promise<{ ai: boolean; model: string; firebase: FirebaseWebConfig | null }> {
   return json(await fetch("/api/status"));
 }

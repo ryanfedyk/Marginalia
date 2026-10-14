@@ -5,12 +5,16 @@ import { aiCoolingDown, drawCollections } from "@/lib/client";
 import { useLibrary } from "@/lib/store";
 import type { Book } from "@/lib/types";
 import { BookCover } from "./BookCover";
+import { CollectionDiscover } from "./CollectionDiscover";
+import { Dialog } from "./Dialog";
 
 interface Row {
   key: string;
   name: string;
   blurb: string;
   books: Book[];
+  /** Offer "Discover more"; `saved` means picks are stored with the collection. */
+  discover?: "saved" | "transient";
 }
 
 let drawing = false;
@@ -31,6 +35,7 @@ export function CollectionsView({
   const setCollections = useLibrary((s) => s.setCollections);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [discovering, setDiscovering] = useState<Row | null>(null);
 
   async function draw() {
     if (drawing) return;
@@ -71,13 +76,14 @@ export function CollectionsView({
         name: c.name,
         blurb: c.blurb,
         books: c.bookIds.map((id) => byId.get(id)).filter((b): b is Book => Boolean(b)),
+        discover: "saved" as const,
       }))
       .filter((r) => r.books.length >= 2);
 
     const loved = books.filter((b) => (b.rating ?? 0) >= 5);
     const lovedRow: Row | null =
       loved.length >= 2
-        ? { key: "loved", name: "The Ones You Loved", blurb: "Every book you gave five stars.", books: loved }
+        ? { key: "loved", name: "The Ones You Loved", blurb: "Every book you gave five stars.", books: loved, discover: "transient" }
         : null;
 
     // Favourites sit just below the first couple of curated rows.
@@ -154,14 +160,38 @@ export function CollectionsView({
       {loading && <p className="mb-8 animate-pulse font-serif text-[15px] italic text-faint">Redrawing your collections…</p>}
       <div className={`transition-opacity duration-300 ${loading ? "opacity-40" : ""}`}>
         {rows.map((r, i) => (
-          <CollectionRow key={r.key} row={r} coverWidth={coverWidth} onOpen={onOpen} index={i} />
+          <CollectionRow key={r.key} row={r} coverWidth={coverWidth} onOpen={onOpen} onDiscover={setDiscovering} index={i} />
         ))}
       </div>
+      <Dialog open={Boolean(discovering)} onClose={() => setDiscovering(null)} eyebrow="Discover more" title={discovering?.name ?? ""} wide>
+        {discovering && (
+          <CollectionDiscover
+            key={discovering.key}
+            name={discovering.name}
+            blurb={discovering.blurb}
+            books={discovering.books}
+            cached={discovering.discover === "saved"}
+            aiReady={aiReady}
+          />
+        )}
+      </Dialog>
     </div>
   );
 }
 
-function CollectionRow({ row, coverWidth, onOpen, index }: { row: Row; coverWidth: number; onOpen: (id: string) => void; index: number }) {
+function CollectionRow({
+  row,
+  coverWidth,
+  onOpen,
+  onDiscover,
+  index,
+}: {
+  row: Row;
+  coverWidth: number;
+  onOpen: (id: string) => void;
+  onDiscover: (row: Row) => void;
+  index: number;
+}) {
   const scroller = useRef<HTMLUListElement>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
   const width = Math.min(260, Math.max(84, coverWidth));
@@ -181,6 +211,14 @@ function CollectionRow({ row, coverWidth, onOpen, index }: { row: Row; coverWidt
       <header className="mb-4 flex items-baseline gap-3">
         <h2 className="font-serif text-[21px] leading-tight text-ink-2 sm:text-[23px]">{row.name}</h2>
         <span className="text-[11px] tabular-nums text-faint">{row.books.length}</span>
+        {row.discover && (
+          <button
+            onClick={() => onDiscover(row)}
+            className="ml-auto shrink-0 text-xs text-muted underline-offset-4 transition hover:text-ink hover:underline"
+          >
+            Discover more →
+          </button>
+        )}
       </header>
       {row.blurb && <p className="-mt-3 mb-5 text-xs text-muted">{row.blurb}</p>}
       <div className="relative">

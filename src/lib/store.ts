@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Book, BookMetadata, Collections, CompanionEntry, Note, ReadingStatus, TasteProfile } from "./types";
+import type { Book, BookMetadata, Collection, Collections, CompanionEntry, Note, ReadingStatus, TasteProfile } from "./types";
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -35,6 +35,7 @@ interface LibraryState {
   removeCompanion: (bookId: string, entryId: string) => void;
   setProfile: (p: TasteProfile | null) => void;
   setCollections: (c: Collections | null) => void;
+  setCollectionRecs: (name: string, recs: NonNullable<Collection["recs"]>) => void;
   importLibrary: (books: Book[]) => number;
   setPraise: (bookId: string, praise: NonNullable<Book["praise"]>) => void;
   /** Cloud sync: apply remote state without touching timestamps. */
@@ -118,6 +119,18 @@ export const useLibrary = create<LibraryState>()(
 
       setProfile: (profile) => set({ profile }),
       setCollections: (collections) => set({ collections }),
+      setCollectionRecs: (name, recs) =>
+        set((s) =>
+          s.collections
+            ? {
+                collections: {
+                  ...s.collections,
+                  updatedAt: now(),
+                  items: s.collections.items.map((c) => (c.name === name ? { ...c, recs } : c)),
+                },
+              }
+            : {},
+        ),
 
       importLibrary: (incoming) => {
         let added = 0;
