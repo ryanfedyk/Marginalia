@@ -14,6 +14,9 @@ import { Dialog } from "./Dialog";
 import { DiscoveryPanel } from "./DiscoveryPanel";
 import { ScanDialog } from "./ScanDialog";
 import { ReadingNow } from "./ReadingNow";
+import { Flashback } from "./Flashback";
+import { MarginsDialog } from "./MarginsDialog";
+import { authorKey, titleKey } from "@/lib/flashback";
 import { SearchDialog } from "./SearchDialog";
 import { ShelfDialog } from "./ShelfDialog";
 import { BarcodeIcon, PlusIcon, SearchIcon, ShelfIcon } from "./icons";
@@ -37,8 +40,19 @@ export function Library() {
   const closeModal = () => navClose(modal === "discover" ? "discover" : "add");
   const [menu, setMenu] = useState(false);
   const [viewPref, setViewPref] = useState<"shelf" | "collections" | null>(null);
+  const [sort, setSort] = useState<"recent" | "title" | "author">("recent");
+  const chooseSort = (v: "recent" | "title" | "author") => {
+    setSort(v);
+    try {
+      localStorage.setItem("marginalia.sort", v);
+    } catch {
+      /* ignore */
+    }
+  };
   useEffect(() => {
     try {
+      const so = localStorage.getItem("marginalia.sort");
+      if (so === "recent" || so === "title" || so === "author") setSort(so);
       const v = localStorage.getItem("marginalia.view");
       if (v === "shelf" || v === "collections") setViewPref(v);
     } catch {
@@ -75,7 +89,7 @@ export function Library() {
   }, [books]);
 
   const account = useAccount();
-  const coverWidth = usePinchZoom(!openId && !modal && !menu);
+  const coverWidth = usePinchZoom(!openId && !modal && !menu && !nav.margins && !nav.collection);
   const q = query.trim().toLowerCase();
   // On the main view, books in hand get their own section above the shelf.
   const showReading = filter === "all" && !q;
@@ -93,10 +107,12 @@ export function Library() {
       .filter((b) => (filter === "all" ? !(showReading && b.status === "reading") : b.status === filter))
       .filter((b) => !q || b.title.toLowerCase().includes(q) || b.authors.some((a) => a.toLowerCase().includes(q)))
       .sort((a, b) => {
+        if (sort === "title") return titleKey(a.title).localeCompare(titleKey(b.title)) || authorKey(a.authors[0]).localeCompare(authorKey(b.authors[0]));
+        if (sort === "author") return authorKey(a.authors[0]).localeCompare(authorKey(b.authors[0])) || titleKey(a.title).localeCompare(titleKey(b.title));
         if (filter === "all" && (a.status === "reading") !== (b.status === "reading")) return a.status === "reading" ? -1 : 1;
         return b.addedAt.localeCompare(a.addedAt);
       });
-  }, [books, filter, q, showReading]);
+  }, [books, filter, q, showReading, sort]);
 
   const openModal = (m: Modal) => {
     setMenu(false);
@@ -208,11 +224,30 @@ export function Library() {
       ) : (
         <>
         {showReading && <ReadingNow books={reading} aiReady={aiReady} onOpen={setOpenId} />}
+        {showReading && <Flashback books={books} onOpenBook={setOpenId} onOpenAll={() => navOpen({ margins: "1" })} />}
         {showCollections ? (
           <CollectionsView books={books} coverWidth={coverWidth} aiReady={aiReady} onOpen={setOpenId} />
         ) : (
         <>
-        {showReading && reading.length > 0 && visible.length > 0 && <p className="eyebrow mb-8">On the shelf</p>}
+        {visible.length > 1 && (
+          <div className="mb-8 flex items-center justify-between gap-4">
+            <p className="eyebrow">{showReading && reading.length > 0 ? "On the shelf" : ""}</p>
+            <div className="flex items-center gap-3 text-xs" role="radiogroup" aria-label="Sort books">
+              <span className="text-faint">Sort</span>
+              {(["recent", "title", "author"] as const).map((v) => (
+                <button
+                  key={v}
+                  role="radio"
+                  aria-checked={sort === v}
+                  onClick={() => chooseSort(v)}
+                  className={`capitalize transition ${sort === v ? "text-ink underline decoration-rule underline-offset-[6px]" : "text-faint hover:text-muted"}`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <ul
           data-shelf
           className="grid"
@@ -270,6 +305,12 @@ export function Library() {
       <Dialog open={modal === "discover"} onClose={closeModal} eyebrow="Discovery" title="Taste & next reads" wide>
         <DiscoveryPanel aiReady={aiReady} />
       </Dialog>
+      <MarginsDialog
+        open={Boolean(nav.margins)}
+        onClose={() => navClose("margins")}
+        books={books}
+        onOpenBook={(id) => navOpen({ margins: null, book: id }, { replace: true })}
+      />
       <BookPanel bookId={openId} onClose={() => navClose("book")} aiReady={aiReady} />
     </div>
   );

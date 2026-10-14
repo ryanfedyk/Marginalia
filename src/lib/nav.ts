@@ -9,11 +9,12 @@ import { useSyncExternalStore } from "react";
  *   ?add=scan|shelf|search   add dialogs
  *   ?discover=1          taste profile
  *   ?collection=<name>   "Discover more" for a collection
+ *   ?margins=1           every note across the library
  */
-export type NavKey = "book" | "add" | "discover" | "collection";
+export type NavKey = "book" | "add" | "discover" | "collection" | "margins";
 export type Nav = Partial<Record<NavKey, string>>;
 
-const KEYS: NavKey[] = ["book", "add", "discover", "collection"];
+const KEYS: NavKey[] = ["book", "add", "discover", "collection", "margins"];
 const EVENT = "marginalia:nav";
 const MARK = "marginaliaDepth";
 
