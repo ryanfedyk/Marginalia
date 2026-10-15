@@ -179,3 +179,10 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* We draw our own clear button on search fields. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}

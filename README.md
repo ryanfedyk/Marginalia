@@ -12,6 +12,7 @@ A quiet, tactile home for the books you own and the thoughts they leave behind.
   - **Companion**: "Catch me up", "Chapter recap" and "Untangle a passage". Answers stream in and are kept spoiler-safe up to the point you say you've reached.
   - **Discovery**: *Similar books* for this title, then a taste profile drawn from your library, ratings and notes, with recommendations that link to Bookshop.org, Amazon, AbeBooks and WorldCat.
 - **Collections**: a Netflix-style view of horizontal rows with evocative, AI-written names drawn from your own books (e.g. "Quiet Lives, Long Shadows"), plus "Fresh on the Shelf", "The Ones You Loved" and "Still Finding Their Place" rows built from your library. Switch between **Shelf** and **Collections** next to the filters. Collections are sized to the library, and a second pass places any leftover books, so very few end up unplaced. Each row has **Discover more →** for books you don't own that belong in it.
+- **Up next**: the Want to read view opens with Gemini's top 3 picks from your own pile, each with a reason (what you're reading now, recent finishes and ratings, notes, how long it's waited) and a **Start reading** button. Saved, and refreshed only when the pile, current reading or ratings change.
 - **Sorting**: the shelf sorts by **Recent**, **Title** (ignoring "The/A/An") or **Author** (by surname).
 - **From your margins**: one note, quote or reaction resurfaces on each visit (older notes and quotes favoured; notes written on this day in an earlier year come first), with **All marginalia**, a searchable commonplace book of every note across the library.
 - **Timeline**: "Your reading life" (`?timeline=1`, from the "N finished this year" link under the title). Each year is a row of months with the covers finished that month piled up, plus books, pages, most-read author and favourite. Marking a book Reading/Finished records the dates automatically; finished books can be back-dated from the book page, and undated ones wait in "Before Marginalia".
@@ -106,6 +107,7 @@ src/app/api/discover   taste profile and recommendations
 src/app/api/praise     critics' quotes (Wikipedia reception, verified; Google Search fallback)
 src/app/api/collections  names and groups the library into collections
 src/app/api/collection-recs  "Discover more" picks for one collection
+src/app/api/next     "Up next" picks from the want-to-read pile
 src/app/api/similar    similar books for one title, steered by ratings
 src/app/api/suggest    type-ahead search suggestions
 src/components         Library grid, BookPanel, tabs, dialogs

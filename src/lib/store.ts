@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Book, BookMetadata, Collection, Collections, CompanionEntry, Note, ReadingStatus, TasteProfile } from "./types";
+import type { Book, BookMetadata, Collection, Collections, UpNext, CompanionEntry, Note, ReadingStatus, TasteProfile } from "./types";
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -17,6 +17,7 @@ interface LibraryState {
   books: Book[];
   profile: TasteProfile | null;
   collections: Collections | null;
+  upNext: UpNext | null;
   /** Firebase uid this local library belongs to (null = never synced / signed out). */
   ownerUid: string | null;
   /** Returns the existing book if it's already shelved. */
@@ -35,6 +36,7 @@ interface LibraryState {
   removeCompanion: (bookId: string, entryId: string) => void;
   setProfile: (p: TasteProfile | null) => void;
   setCollections: (c: Collections | null) => void;
+  setUpNext: (u: UpNext | null) => void;
   setCollectionRecs: (name: string, recs: NonNullable<Collection["recs"]>) => void;
   importLibrary: (books: Book[]) => number;
   setPraise: (bookId: string, praise: NonNullable<Book["praise"]>) => void;
@@ -54,6 +56,7 @@ export const useLibrary = create<LibraryState>()(
       books: [],
       profile: null,
       collections: null,
+      upNext: null,
       ownerUid: null,
 
       findDuplicate: (meta) =>
@@ -131,6 +134,7 @@ export const useLibrary = create<LibraryState>()(
 
       setProfile: (profile) => set({ profile }),
       setCollections: (collections) => set({ collections }),
+      setUpNext: (upNext) => set({ upNext }),
       setCollectionRecs: (name, recs) =>
         set((s) =>
           s.collections
@@ -173,7 +177,7 @@ export const useLibrary = create<LibraryState>()(
 
       setOwner: (ownerUid) => set({ ownerUid }),
 
-      resetLocal: () => set({ books: [], profile: null, collections: null, ownerUid: null }),
+      resetLocal: () => set({ books: [], profile: null, collections: null, upNext: null, ownerUid: null }),
     }),
     {
       name: "marginalia.library.v1",
@@ -202,4 +206,16 @@ export function libraryFingerprint(books: Book[]): string {
   let h = 0;
   for (let i = 0; i < sig.length; i++) h = (h * 31 + sig.charCodeAt(i)) | 0;
   return `${books.length}-${(h >>> 0).toString(36)}`;
+}
+
+/** What "Up next" depends on: the want-to-read pile, what's being read, and ratings. */
+export function upNextFingerprint(books: Book[]): string {
+  const sig = books
+    .filter((b) => b.status === "want" || b.status === "reading" || b.rating)
+    .map((b) => `${b.id}:${b.status}:${b.rating ?? 0}`)
+    .sort()
+    .join("|");
+  let h = 0;
+  for (let i = 0; i < sig.length; i++) h = (h * 31 + sig.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
 }

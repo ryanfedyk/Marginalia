@@ -17,10 +17,11 @@ import { ReadingNow } from "./ReadingNow";
 import { Flashback } from "./Flashback";
 import { MarginsDialog } from "./MarginsDialog";
 import { TimelineDialog } from "./TimelineDialog";
+import { UpNext } from "./UpNext";
 import { authorKey, titleKey } from "@/lib/flashback";
 import { SearchDialog } from "./SearchDialog";
 import { ShelfDialog } from "./ShelfDialog";
-import { BarcodeIcon, PlusIcon, SearchIcon, ShelfIcon } from "./icons";
+import { BarcodeIcon, CloseIcon, PlusIcon, SearchIcon, ShelfIcon } from "./icons";
 import { usePinchZoom } from "./usePinchZoom";
 
 type Filter = ReadingStatus | "all";
@@ -198,44 +199,64 @@ export function Library() {
       </header>
 
       {hydrated && books.length > 0 && (
-        <nav className="mb-10 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-rule pb-4 sm:mb-14">
-          {(["all", "reading", "want", "finished", "paused"] as Filter[]).map((f) =>
-            f !== "all" && !counts[f] ? null : (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`text-sm transition ${filter === f ? "text-ink" : "text-faint hover:text-muted"}`}
-              >
-                {f === "all" ? "All" : STATUS_LABELS[f]}
-                <span className="ml-1.5 text-[11px] tabular-nums text-faint">{counts[f]}</span>
-              </button>
-            ),
-          )}
-          <span className="flex-1" />
-          {books.length > 12 && (
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find on shelf"
-              className="w-40 border-b border-transparent bg-transparent py-0.5 text-sm placeholder:text-faint focus:border-rule focus:outline-none"
-            />
-          )}
-          {canCollect && filter === "all" && !q && (
-            <div className="flex items-center gap-1 rounded-full border border-rule p-0.5 text-xs">
-              {(["shelf", "collections"] as const).map((v) => (
+        <nav className="mb-10 flex flex-col gap-4 border-b border-rule pb-4 sm:mb-14 lg:flex-row lg:items-center lg:justify-between">
+          {/* Status filters: one row that scrolls sideways on small screens instead of wrapping. */}
+          <div className="no-scrollbar -mx-5 flex gap-6 overflow-x-auto px-5 sm:-mx-10 sm:px-10 lg:mx-0 lg:px-0">
+            {(["all", "reading", "want", "finished", "paused"] as Filter[]).map((f) =>
+              f !== "all" && !counts[f] ? null : (
                 <button
-                  key={v}
-                  onClick={() => chooseView(v)}
-                  className={`rounded-full px-3 py-1 capitalize transition ${view === v ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`shrink-0 whitespace-nowrap text-sm transition ${filter === f ? "text-ink" : "text-faint hover:text-muted"}`}
                 >
-                  {v}
+                  {f === "all" ? "All" : STATUS_LABELS[f]}
+                  <span className="ml-1.5 text-[11px] tabular-nums text-faint">{counts[f]}</span>
                 </button>
-              ))}
-            </div>
-          )}
-          <button className="text-sm text-muted hover:text-ink" onClick={() => openModal("discover")}>
-            Discover
-          </button>
+              ),
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+            {books.length >= 6 && (
+              <div className="relative w-full min-w-0 sm:w-auto sm:flex-1 lg:w-60 lg:flex-none">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-faint" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && query && (e.stopPropagation(), setQuery(""))}
+                  placeholder="Search your shelf"
+                  aria-label="Search your shelf by title or author"
+                  className="h-9 w-full rounded-full border border-rule bg-paper-2/60 pr-9 pl-8 text-sm text-ink transition placeholder:text-faint focus:border-[#cfccc5] focus:bg-paper focus:outline-none"
+                />
+                {query && (
+                  <button
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                    className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-faint transition hover:bg-paper-3 hover:text-ink"
+                  >
+                    <CloseIcon className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+            {canCollect && filter === "all" && !q && (
+              <div className="flex shrink-0 items-center gap-1 rounded-full border border-rule p-0.5 text-xs">
+                {(["shelf", "collections"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => chooseView(v)}
+                    className={`rounded-full px-3 py-1 capitalize transition ${view === v ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button className="ml-auto shrink-0 text-sm text-muted hover:text-ink sm:ml-0" onClick={() => openModal("discover")}>
+              Discover
+            </button>
+          </div>
         </nav>
       )}
 
@@ -244,6 +265,7 @@ export function Library() {
       ) : (
         <>
         {showReading && <ReadingNow books={reading} aiReady={aiReady} onOpen={setOpenId} />}
+        {filter === "want" && !q && <UpNext books={books} aiReady={aiReady} onOpen={setOpenId} />}
         {showReading && <Flashback books={books} onOpenBook={setOpenId} onOpenAll={() => navOpen({ margins: "1" })} />}
         {showCollections ? (
           <CollectionsView books={books} coverWidth={coverWidth} aiReady={aiReady} onOpen={setOpenId} />

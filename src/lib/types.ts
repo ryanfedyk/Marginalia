@@ -104,6 +104,13 @@ export interface Collections {
   basisIds: string[];
 }
 
+export interface UpNext {
+  picks: { bookId: string; why: string }[];
+  /** What the picks were based on (want list, reading, ratings) — regenerate when it changes. */
+  fingerprint: string;
+  generatedAt: string;
+}
+
 export interface TasteProfile {
   summary: string;
   threads: string[];

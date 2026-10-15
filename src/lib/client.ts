@@ -151,6 +151,15 @@ export async function fetchCollectionRecs(payload: {
   return (await json<{ books: Recommendation[] }>(res)).books;
 }
 
+export async function fetchUpNext(payload: unknown): Promise<{ index: number; why: string }[]> {
+  const res = await fetch("/api/next", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return (await json<{ picks: { index: number; why: string }[] }>(res)).picks;
+}
+
 export async function aiStatus(): Promise<{ ai: boolean; model: string; firebase: FirebaseWebConfig | null }> {
   return json(await fetch("/api/status"));
 }
