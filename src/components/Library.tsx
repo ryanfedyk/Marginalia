@@ -18,10 +18,11 @@ import { Flashback } from "./Flashback";
 import { MarginsDialog } from "./MarginsDialog";
 import { TimelineDialog } from "./TimelineDialog";
 import { UpNext } from "./UpNext";
+import { ShelfSearch } from "./ShelfSearch";
 import { authorKey, titleKey } from "@/lib/flashback";
 import { SearchDialog } from "./SearchDialog";
 import { ShelfDialog } from "./ShelfDialog";
-import { BarcodeIcon, CloseIcon, PlusIcon, SearchIcon, ShelfIcon } from "./icons";
+import { BarcodeIcon, PlusIcon, SearchIcon, ShelfIcon } from "./icons";
 import { usePinchZoom } from "./usePinchZoom";
 
 type Filter = ReadingStatus | "all";
@@ -216,30 +217,8 @@ export function Library() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
-            {books.length >= 6 && (
-              <div className="relative w-full min-w-0 sm:w-auto sm:flex-1 lg:w-60 lg:flex-none">
-                <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-faint" />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Escape" && query && (e.stopPropagation(), setQuery(""))}
-                  placeholder="Search your shelf"
-                  aria-label="Search your shelf by title or author"
-                  className="h-9 w-full rounded-full border border-rule bg-paper-2/60 pr-9 pl-8 text-sm text-ink transition placeholder:text-faint focus:border-[#cfccc5] focus:bg-paper focus:outline-none"
-                />
-                {query && (
-                  <button
-                    onClick={() => setQuery("")}
-                    aria-label="Clear search"
-                    className="absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-faint transition hover:bg-paper-3 hover:text-ink"
-                  >
-                    <CloseIcon className="size-3.5" />
-                  </button>
-                )}
-              </div>
-            )}
+          <div className="flex items-center justify-end gap-3">
+            {books.length >= 6 && <ShelfSearch value={query} onChange={setQuery} />}
             {canCollect && filter === "all" && !q && (
               <div className="flex shrink-0 items-center gap-1 rounded-full border border-rule p-0.5 text-xs">
                 {(["shelf", "collections"] as const).map((v) => (
@@ -253,7 +232,7 @@ export function Library() {
                 ))}
               </div>
             )}
-            <button className="ml-auto shrink-0 text-sm text-muted hover:text-ink sm:ml-0" onClick={() => openModal("discover")}>
+            <button className="shrink-0 text-sm text-muted hover:text-ink" onClick={() => openModal("discover")}>
               Discover
             </button>
           </div>
