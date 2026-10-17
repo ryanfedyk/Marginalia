@@ -7,6 +7,7 @@ interface Entry {
   title: string;
   author: string;
   rating?: number;
+  pages?: number;
   /** e.g. "added 8 months ago" */
   waiting?: string;
   notes?: string[];
@@ -44,10 +45,12 @@ Think like a perceptive friend who knows their shelves:
 - Lean towards what resembles books they rated highly; away from what resembles books they rated low.
 - Their notes reveal what moves them.
 - A book that has waited a long time deserves a nudge, if it fits.
+- Length matters. Page counts are given where known (otherwise use what you know of the book). After a long or demanding read, a shorter one is often welcome; after several slim books, a big immersive one may be. If their current book is nearly finished, factor in what comes right after it. Mention length in the reason when it's part of the choice.
+- The time of year can colour the choice, gently: darker or gothic books in autumn, big absorbing novels for long winter evenings, lighter or travel-friendly books in summer, fresh starts in spring. Use the date and season given. Never let the season outweigh a clearly better fit, and don't mention it unless it genuinely shaped the pick.
 Pick only from the numbered want-to-read list. Speak to the reader as "you". Never invent facts about a book you're unsure of.`;
 
 export async function POST(req: Request) {
-  let body: { want?: Entry[]; reading?: Entry[]; recent?: Entry[]; favourites?: string[] };
+  let body: { want?: Entry[]; reading?: Entry[]; recent?: Entry[]; favourites?: string[]; today?: string; season?: string };
   try {
     body = await req.json();
   } catch {
@@ -57,13 +60,14 @@ export async function POST(req: Request) {
   if (want.length < 2) return Response.json({ error: "Add at least two books to Want to read." }, { status: 400 });
 
   const fmt = (e: Entry) =>
-    `${e.title} — ${e.author || "unknown"}${e.rating ? ` (rated ${e.rating}/5)` : ""}${e.waiting ? `, ${e.waiting}` : ""}${
+    `${e.title} — ${e.author || "unknown"}${e.pages ? `, ${e.pages} pages` : ""}${e.rating ? ` (rated ${e.rating}/5)` : ""}${e.waiting ? `, ${e.waiting}` : ""}${
       e.notes?.length ? `\n    their notes: ${e.notes.slice(0, 3).map((n) => n.slice(0, 200)).join(" | ")}` : ""
     }`;
   const parts = [`Want to read:\n${want.map((w, i) => `${i + 1}. ${fmt(w)}`).join("\n")}`];
   if (body.reading?.length) parts.push(`Reading right now:\n${body.reading.map((r) => `- ${fmt(r)}`).join("\n")}`);
   if (body.recent?.length) parts.push(`Recently finished:\n${body.recent.slice(0, 10).map((r) => `- ${fmt(r)}`).join("\n")}`);
   if (body.favourites?.length) parts.push(`All-time favourites: ${body.favourites.slice(0, 15).join("; ")}`);
+  if (body.today) parts.push(`Today is ${body.today}${body.season ? ` (${body.season} where I live)` : ""}.`);
   parts.push("Which 3 should I read next?");
 
   try {

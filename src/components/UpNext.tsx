@@ -6,10 +6,12 @@ import { ago } from "@/lib/flashback";
 import { upNextFingerprint, useLibrary } from "@/lib/store";
 import type { Book } from "@/lib/types";
 import { BookCover } from "./BookCover";
+import { todayContext } from "@/lib/season";
 
 const entry = (b: Book) => ({
   title: b.title,
   author: b.authors.join(", "),
+  pages: b.pageCount,
   rating: b.rating,
   notes: b.notes.map((n) => n.body),
 });
@@ -25,13 +27,16 @@ export function UpNext({ books, aiReady, onOpen }: { books: Book[]; aiReady: boo
   const [shown, setShown] = useState(0);
 
   const want = books.filter((b) => b.status === "want");
-  const fp = upNextFingerprint(books);
+  const when = todayContext();
+  // Picks also refresh when the month turns, so the season can play its part.
+  const fp = `${upNextFingerprint(books)}:${when.month}`;
   const stale = !upNext || upNext.fingerprint !== fp;
 
   async function load() {
     const all = useLibrary.getState().books;
     const wantNow = all.filter((b) => b.status === "want");
-    const fingerprint = upNextFingerprint(all);
+    const ctx = todayContext();
+    const fingerprint = `${upNextFingerprint(all)}:${ctx.month}`;
     setLoading(true);
     setError(null);
     try {
@@ -44,6 +49,8 @@ export function UpNext({ books, aiReady, onOpen }: { books: Book[]; aiReady: boo
           .slice(0, 10)
           .map(entry),
         favourites: all.filter((b) => (b.rating ?? 0) >= 4).map((b) => `${b.title} — ${b.authors[0] ?? ""}`),
+        today: ctx.today,
+        season: ctx.season,
       });
       setUpNext({
         picks: picks.map((p) => ({ bookId: wantNow[p.index]?.id, why: p.why })).filter((p) => p.bookId),
