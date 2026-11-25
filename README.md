@@ -32,9 +32,9 @@ npm run dev                  # http://localhost:3000
 | Variable | Purpose |
 |---|---|
 | `GEMINI_API_KEY` | Required for shelf photos, Companion and Discovery. Get one at [Google AI Studio](https://aistudio.google.com/apikey). Scanning and search work without it. |
-| `GEMINI_MODEL` | Optional model override. The default is `gemini-3.8-flash`. |
+| `GEMINI_MODEL` | Optional model override. The default is `gemini-4-hydrogen` (Gemini 4 Hydrogen). |
 | `GEMINI_RPM` | Max Gemini requests started per minute (default `8`, which suits the free tier). Extra requests wait their turn. Raise it on a paid plan. |
-| `GEMINI_FALLBACK_MODELS` | Optional comma-separated backups tried when the main model is busy or out of quota. The default is `gemini-3.5-flash,gemini-3.1-flash-lite`. |
+| `GEMINI_FALLBACK_MODELS` | Optional comma-separated backups tried when the main model is busy or out of quota. The default is `gemini-3.8-flash,gemini-3.5-flash`. |
 | `GOOGLE_BOOKS_API_KEY` | Optional. Raises Google Books rate limits for the fallback lookup. |
 
 The camera only works on `https://` or `localhost`. Cloud Run gives you an https address automatically.
@@ -72,7 +72,7 @@ With the trigger connected, every push to the branch it watches redeploys automa
 | `_REPOSITORY` | `cloud-run-source-deploy` | Artifact Registry repo |
 | `_SERVICE` | `marginalia` | Cloud Run service name |
 | `_GEMINI_SECRET` | `GEMINI_API_KEY` | Secret Manager secret holding the Gemini key |
-| `_GEMINI_MODEL` | `gemini-3.8-flash` | Gemini model |
+| `_GEMINI_MODEL` | `gemini-4-hydrogen` | Gemini model |
 | `_RUN_SA_NAME` | `marginalia-runner` | Service account the Cloud Run service runs as |
 | `_GEMINI_RPM` | `8` | Gemini requests per minute (see above) |
 

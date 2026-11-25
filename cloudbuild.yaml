@@ -17,7 +17,7 @@ substitutions:
   _REPOSITORY: cloud-run-source-deploy
   _SERVICE: marginalia
   _GEMINI_SECRET: GEMINI_API_KEY
-  _GEMINI_MODEL: gemini-3.8-flash
+  _GEMINI_MODEL: gemini-4-hydrogen
   _RUN_SA_NAME: marginalia-runner
   # Gemini requests per minute the app may start. ~8 suits the free tier; raise it on a paid plan.
   _GEMINI_RPM: "8"

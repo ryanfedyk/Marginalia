@@ -7,13 +7,13 @@ import { RateLimitedError, Throttle, retryDelayMs } from "./throttle";
 const throttle = new Throttle(Math.max(1, Number(process.env.GEMINI_RPM) || 8));
 
 /** Gemini powers every AI feature. Override the model with GEMINI_MODEL. */
-export const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+export const MODEL = process.env.GEMINI_MODEL || "gemini-4-hydrogen";
 
 /**
  * Tried in order when the main model is overloaded or unavailable.
  * Override with GEMINI_FALLBACK_MODELS (comma-separated).
  */
-export const FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-3.5-flash,gemini-3.1-flash-lite")
+export const FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-3.8-flash,gemini-3.5-flash")
   .split(",")
   .map((m) => m.trim())
   .filter((m) => m && m !== MODEL);
